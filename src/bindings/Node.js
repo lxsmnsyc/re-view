@@ -18,7 +18,7 @@ class Node {
   }
 
   unmount() {
-    this.parent = null;
+    this.parent = undefined;
   }
 
   getState(index) {
@@ -38,7 +38,19 @@ class Node {
   }
 
   clearNode(index) {
-    this.nodes[index] = null;
+    this.nodes[index] = undefined;
+  }
+
+  clearNodes() {
+    this.nodes = [];
+  }
+
+  forEachState(callback) {
+    this.state.forEach((state, index) => callback(index, state));
+  }
+
+  forEachNode(callback) {
+    this.nodes.forEach((node, index) => callback(index, node));
   }
 }
 
