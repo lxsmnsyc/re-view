@@ -10,9 +10,14 @@ var Component$ReView = require("./Component.bs.js");
 
 var make = Component$ReView.make("Test", (function (param) {
         var match = State$ReView.use(100);
+        var match$1 = State$ReView.use(200);
         console.log(match[0]);
+        console.log(match$1[0]);
         Curry._1(match[1], (function (param) {
                 return 1000;
+              }));
+        Curry._1(match$1[1], (function (param) {
+                return 2000;
               }));
         return ;
       }));

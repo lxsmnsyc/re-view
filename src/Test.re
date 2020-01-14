@@ -6,11 +6,18 @@ external setTimeout: ('input => unit) => unit = "setTimeout";
  */
 module Test {
   let make = Component.make("Test", () => {
-    let (state, setState): (int, State.dispatch(int)) = State.use(100);
+    let (a, setA): (int, State.dispatch(int)) = State.use(100);
+    let (b, setB): (int, State.dispatch(int)) = State.use(200);
 
-    Js.log(state);
+    Js.log(a);
+    Js.log(b);
 
-    setState(_ => 1000);
+    /**
+     * Although both dispatches can trigger the re-render cycle
+     * All simultaneous requests would be merged.
+     */
+    setA(_ => 1000);
+    setB(_ => 2000);
 
     None;
   });
