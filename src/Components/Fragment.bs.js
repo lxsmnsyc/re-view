@@ -7,7 +7,7 @@ var Component$ReView = require("../Component.bs.js");
 var Reconciler$ReView = require("../Reconciler.bs.js");
 var RenderContext$ReView = require("../RenderContext.bs.js");
 
-var make = Component$ReView.make("Fragment", (function (children) {
+var make = Component$ReView.make("Fragment", (function (param) {
         var match = RenderContext$ReView.getContext(/* () */0);
         var root = match.root;
         var parent = match.parent;
@@ -17,7 +17,7 @@ var make = Component$ReView.make("Fragment", (function (children) {
                 } else {
                   return /* () */0;
                 }
-              }), children);
+              }), param.children);
         return ;
       }));
 
