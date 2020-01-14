@@ -37,7 +37,9 @@ module App {
      */
     Js.log("rendered again :/");
 
-    Fragment.make(children)
+    Fragment.make({
+      children: children,
+    });
   });
 };
 

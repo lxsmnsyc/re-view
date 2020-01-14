@@ -28,7 +28,9 @@ var Test = {
 
 var make$1 = Component$ReView.make("App", (function (param) {
         console.log("rendered again :/");
-        return Fragment$ReView.make(param.children);
+        return Fragment$ReView.make({
+                    children: param.children
+                  });
       }));
 
 var App = {
