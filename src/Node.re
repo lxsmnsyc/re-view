@@ -46,10 +46,16 @@ external getMountSchedule: Types.Node.t => bool = "mountSchedule";
 external getUnmountSchedule: Types.Node.t => bool = "unmountSchedule";
 
 [@bs.send]
-external getState: (Types.Node.t, int) => option('a) = "getState";
+external getState: (Types.Node.t, int) => option(Types.State.t('a, 'b, 'c)) = "getState";
 
 [@bs.send]
-external setState: (Types.Node.t, int, 'a) => unit = "setState";
+external setState: (Types.Node.t, int, Types.State.t('a, 'b, 'c)) => unit = "setState";
+
+[@bs.send]
+external forEachState: (Types.Node.t, (int, 'input) => 'output) => unit = "forEachState";
+
+[@bs.send]
+external forEachNode: (Types.Node.t, (int, 'input) => 'output) => unit = "forEachNode";
 
 [@bs.module "./bindings/Node.js"]
 [@bs.val]
