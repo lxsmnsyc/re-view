@@ -1,20 +1,20 @@
-type t('a) = ref('a);
 
-let use = (initialValue: 'a): ref('a) => {
+let use = (initialValue: 'state): ref('state) => {
   if (RenderContext.isActive()) {
     let { node, slot }: Types.RenderContext.t = RenderContext.getContext();
 
     let current = slot^;
-    let state: option(ref('a)) = Node.getState(node, current);
+    let state = Node.getState(node, current);
 
     switch (state) {
-      | Some(value) => {
+      | Some(Ref(value)) => {
         slot := current + 1
         value;
       }
+      | Some(_) => raise(Exception.IllegalSlotAccess);
       | None => {
         let value = ref(initialValue);
-        Node.setState(node, current, value);
+        Node.setState(node, current, Ref(value));
         slot := current + 1;
         value;
       }
