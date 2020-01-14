@@ -30,11 +30,18 @@ external setTimeout: ('input => unit) => unit = "setTimeout";
  */
 module Test {
   let make = Component.make("Test", () => {
-    let (state, setState): (int, State.dispatch(int)) = State.use(100);
+    let (a, setA): (int, State.dispatch(int)) = State.use(100);
+    let (b, setB): (int, State.dispatch(int)) = State.use(200);
 
-    Js.log(state);
+    Js.log(a);
+    Js.log(b);
 
-    setState(_ => 1000);
+    /**
+     * Although both dispatches can trigger the re-render cycle
+     * All simultaneous requests would be merged.
+     */
+    setA(_ => 1000);
+    setB(_ => 2000);
 
     None;
   });
@@ -114,9 +121,13 @@ setTimeout(() => {
 ```bash
 rendered again :/
 100
+200
 100
+200
 1000
+2000
 1000
+2000
 <ref *2> Node {
   props: undefined,
   component: undefined,
@@ -128,7 +139,12 @@ rendered again :/
           Node {
             props: 0,
             component: { name: 'Test', render: [Function (anonymous)] },
-            state: [ 1000, [Function: newDispatch] ],
+            state: [
+              1000,
+              [Function: newDispatch],
+              2000,
+              [Function: newDispatch]
+            ],
             nodes: [],
             mountSchedule: false,
             parent: [Circular *1]
@@ -137,7 +153,12 @@ rendered again :/
             Node {
               props: 0,
               component: { name: 'Test', render: [Function (anonymous)] },
-              state: [ 1000, [Function: newDispatch] ],
+              state: [
+                1000,
+                [Function: newDispatch],
+                2000,
+                [Function: newDispatch]
+              ],
               nodes: [],
               mountSchedule: false,
               parent: [Circular *1]
@@ -152,7 +173,12 @@ rendered again :/
         Node {
           props: 0,
           component: { name: 'Test', render: [Function (anonymous)] },
-          state: [ 1000, [Function: newDispatch] ],
+          state: [
+            1000,
+            [Function: newDispatch],
+            2000,
+            [Function: newDispatch]
+          ],
           nodes: [],
           mountSchedule: false,
           parent: [Circular *1]
@@ -160,7 +186,12 @@ rendered again :/
         Node {
           props: 0,
           component: { name: 'Test', render: [Function (anonymous)] },
-          state: [ 1000, [Function: newDispatch] ],
+          state: [
+            1000,
+            [Function: newDispatch],
+            2000,
+            [Function: newDispatch]
+          ],
           nodes: [],
           mountSchedule: false,
           parent: [Circular *1]
@@ -182,7 +213,12 @@ rendered again :/
           Node {
             props: 0,
             component: { name: 'Test', render: [Function (anonymous)] },
-            state: [ 1000, [Function: newDispatch] ],
+            state: [
+              1000,
+              [Function: newDispatch],
+              2000,
+              [Function: newDispatch]
+            ],
             nodes: [],
             mountSchedule: false,
             parent: [Circular *1]
@@ -191,7 +227,12 @@ rendered again :/
             Node {
               props: 0,
               component: { name: 'Test', render: [Function (anonymous)] },
-              state: [ 1000, [Function: newDispatch] ],
+              state: [
+                1000,
+                [Function: newDispatch],
+                2000,
+                [Function: newDispatch]
+              ],
               nodes: [],
               mountSchedule: false,
               parent: [Circular *1]
@@ -206,7 +247,12 @@ rendered again :/
         Node {
           props: 0,
           component: { name: 'Test', render: [Function (anonymous)] },
-          state: [ 1000, [Function: newDispatch] ],
+          state: [
+            1000,
+            [Function: newDispatch],
+            2000,
+            [Function: newDispatch]
+          ],
           nodes: [],
           mountSchedule: false,
           parent: [Circular *1]
@@ -214,7 +260,12 @@ rendered again :/
         Node {
           props: 0,
           component: { name: 'Test', render: [Function (anonymous)] },
-          state: [ 1000, [Function: newDispatch] ],
+          state: [
+            1000,
+            [Function: newDispatch],
+            2000,
+            [Function: newDispatch]
+          ],
           nodes: [],
           mountSchedule: false,
           parent: [Circular *1]
@@ -226,3 +277,11 @@ rendered again :/
   ]
 }
 ```
+
+## How does it work?
+
+### Virtual DOM and Reconciliation
+
+Unlike most virtual DOMs which rebuilds the tree from ground-up, compares states, props, etc., ReView is a little different.
+
+What ReView does is it only performs the rebuilding process on the specific parts of the tree that requested it, and so it knows when to update the nodes by in-place diffing. The nodes requests whenever they wanted to be rendered again, and if they do, the diffing process then occurs on that node, and then performs the nested diffing if and only if the new node that is proposed to replace the old node has different children nodes.
