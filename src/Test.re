@@ -1,5 +1,5 @@
 [@bs.val]
-external setTimeout: ('input => unit) => unit = "setTimeout";
+external setTimeout: ('input => unit, int) => unit = "setTimeout";
 
 /**
  * Internal component that re-renders on mount.
@@ -9,16 +9,19 @@ module Test {
     let (a, setA): (int, State.dispatch(int)) = State.use(100);
     let (b, setB): (int, State.dispatch(int)) = State.use(200);
 
-    Js.log(a);
-    Js.log(b);
-
     /**
      * Although both dispatches can trigger the re-render cycle
      * All simultaneous requests would be merged.
      */
-    setA(_ => 1000);
-    setB(_ => 2000);
+    Effect.use(() => {
+      setA(_ => 1000);
+      setB(_ => 2000);
 
+      None;
+    }, []);
+
+    Js.log(a);
+    Js.log(b);
     None;
   });
 };
@@ -28,18 +31,28 @@ module Test {
  */
 module App {
   type props = {
-    children: list(option(Types.Node.t)),
+    children: list(Types.Renderer.Result.t),
   };
 
   let make = Component.make("App", ({ children }: props) => {
-    /**
-     * Does not re-render again don't worry ;)
-     */
-    Js.log("rendered again :/");
+    let (state, setState) = State.use(false);
 
-    Fragment.make({
-      children: children,
-    });
+    Effect.use(() => {
+      setTimeout(() => {
+        setState(_ => true);
+      }, 200);
+      None;
+    }, [state]);
+
+    Js.log(state);
+
+    if (!state) {
+      Fragment([
+        Fragment(children),
+      ]);
+    } else {
+      None;
+    }
   });
 };
 
@@ -89,5 +102,5 @@ setTimeout(() => {
    */
   setTimeout(() => {
     dir(root);
-  });
-});
+  }, 0);
+}, 1000);
