@@ -7,10 +7,20 @@ function make(prim, prim$1) {
   return new NodeJs.Node(prim, prim$1);
 }
 
+function isUnmounted(prim) {
+  return NodeJs.isUnmounted(prim);
+}
+
 function toEquatable(prim) {
   return NodeJs.toEquatable(prim);
 }
 
+function flatten(prim) {
+  return NodeJs.toEquatable(prim);
+}
+
 exports.make = make;
+exports.isUnmounted = isUnmounted;
 exports.toEquatable = toEquatable;
+exports.flatten = flatten;
 /* ./bindings/Node.js Not a pure module */

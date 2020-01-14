@@ -7,7 +7,7 @@ external make: (option(Types.Component.t('a)), 'a) => Types.Node.t = "Node";
 external props: Types.Node.t => option('a) = "props";
 
 [@bs.get]
-external nodes: Types.Node.t => array(Types.Node.t) = "nodes";
+external nodes: Types.Node.t => list(Types.Node.t) = "nodes";
 
 [@bs.get]
 external parent: Types.Node.t => option(Types.Node.t) = "parent";
@@ -42,6 +42,10 @@ external setUnmountSchedule: (Types.Node.t, bool) => unit = "unmountSchedule";
 [@bs.get]
 external getMountSchedule: Types.Node.t => bool = "mountSchedule";
 
+[@bs.module "./bindings/Node.js"]
+[@bs.val]
+external isUnmounted: Types.Node.t => bool = "isUnmounted";
+
 [@bs.get]
 external getUnmountSchedule: Types.Node.t => bool = "unmountSchedule";
 
@@ -60,3 +64,10 @@ external forEachNode: (Types.Node.t, (int, 'input) => 'output) => unit = "forEac
 [@bs.module "./bindings/Node.js"]
 [@bs.val]
 external toEquatable: Types.Node.t => Types.EquatableNode.t('a) = "toEquatable";
+
+[@bs.module "./bindings/Node.js"]
+[@bs.val]
+external flatten: list('a) => list('a) = "toEquatable";
+
+[@bs.send]
+external size: Types.Node.t => int = "getSize";

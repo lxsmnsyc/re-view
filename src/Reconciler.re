@@ -1,7 +1,7 @@
 
 
 let rec unmount = (node: Types.Node.t, parent: Types.Node.t, index: int): unit => {
-  if (!Node.getUnmountSchedule(node)) {
+  if (!Node.isUnmounted(node) && !Node.getUnmountSchedule(node)) {
     Node.setUnmountSchedule(node, true);
 
     Utils.scheduleAsync(() => {
@@ -21,7 +21,7 @@ let rec unmount = (node: Types.Node.t, parent: Types.Node.t, index: int): unit =
 
       let nodes = Node.nodes(node);
 
-      nodes |> Array.iteri((i, child) => {
+      nodes |> List.iteri((i, child) => {
         unmount(child, node, i);
       });
 
@@ -31,87 +31,79 @@ let rec unmount = (node: Types.Node.t, parent: Types.Node.t, index: int): unit =
   }
 };
 
-let rec renderResult = (nodes: Types.Renderer.Result.t, parent: Types.Node.t, index: int, root: Types.Node.t) => {
-  /**
-   * Since there are dependency cycles, load the render function
-   */
-  let render: Types.Reconciler.Render.t = ModuleResolver.getModule("render");
-  switch (nodes) {
-    | Fragment(list) => {
-      list |> List.iteri((id, node) => {
-        renderResult(node, parent, id, root);
-      });
-    }
-    | Some(node) => {
-      render(node, parent, Some(index), Some(root));
-    }
-    | None => {
-      Node.forEachNode(parent, (i, child) => {
-        unmount(child, parent, i);
-      });
-    };
-  };
-};
-
 let request = (node: Types.Node.t, parent: Types.Node.t, index: int, root: Types.Node.t): unit => {
-  if (!Node.getMountSchedule(node)) {
+  if (!Node.isUnmounted(node) && !Node.getMountSchedule(node)) {
     Node.setMountSchedule(node, true);
 
     Utils.scheduleAsync(() => {
-      Node.setMountSchedule(node, false);
-      /**
-       * Set render context
-       */
-      RenderContext.setContext({
-        node,
-        parent,
-        root,
-        index,
-        slot: ref(0),
-      });
+      if (!Node.isUnmounted(node)) {
+        Node.setMountSchedule(node, false);
+        /**
+         * Set render context
+         */
+        RenderContext.setContext({
+          node,
+          parent,
+          root,
+          index,
+          slot: ref(0),
+        });
 
-      /**
-       * Set parent node for node
-       */
-      Node.mount(node, parent);
+        /**
+         * Set parent node for node
+         */
+        Node.mount(node, parent);
 
-      /**
-       * Perform render
-       */
-      let component = Node.component(node)
-      
-      switch(component) {
-        | Some(component) => {
-          let childNode = component.render(Node.props(node));
-
-          renderResult(childNode, node, 0, root);
-        }
-        | None => ();
-      }
-
-      /**
-       * Reset render context
-       */
-      RenderContext.popContext();
-
-      /**
-       * Render complete, add node to parent
-       */
-      Node.setNode(parent, index, node);
-
-      /**
-       * Run all effects
-       */
-      Node.forEachState(node, (id, state) => {
-        switch (state) {
-          | Some(Types.State.Effect(effect)) => {
-            let cleanup = effect();
-
-            Node.setState(node, id, EffectCleanup(cleanup));
+        /**
+         * Perform render
+         */
+        let component = Node.component(node)
+        
+        switch(component) {
+          | Some(component) => {
+            let childNode = component.render(Node.props(node));
+            
+            /**
+             * Since there are dependency cycles, load the render function
+             */
+            let render: Types.Reconciler.Render.t = ModuleResolver.getModule("render");
+            switch (childNode) {
+              | Some(actual) => render(actual, node, Some(0), Some(root));
+              | None => {
+                switch (Node.getNode(node, 0)) {
+                  | Some(actual) => unmount(actual, node, 0);
+                  | None => ();
+                }
+              };
+            }
           }
-          | _ => ();
+          | None => ();
         }
-      });
+
+        /**
+         * Reset render context
+         */
+        RenderContext.popContext();
+
+        /**
+         * Render complete, add node to parent
+         */
+        Node.setNode(parent, index, node);
+
+        /**
+         * Run all effects
+         */
+        Node.forEachState(node, (id, state) => {
+          switch (state) {
+            | Some(Types.State.Effect(effect)) => {
+              let cleanup = effect();
+
+              Node.setState(node, id, EffectCleanup(cleanup));
+            }
+            | _ => ();
+          }
+        });
+      }
     });
   }
 };

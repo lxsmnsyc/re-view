@@ -19,6 +19,7 @@ class Node {
 
   unmount() {
     this.parent = undefined;
+    this.unmounted = true;
   }
 
   getState(index) {
@@ -52,17 +53,37 @@ class Node {
   forEachNode(callback) {
     this.nodes.forEach((node, index) => callback(index, node));
   }
+
+  getSize() {
+    return this.nodes.length;
+  }
+}
+
+function isUnmounted(node) {
+  return !node || node.unmounted;
+}
+
+function flatten(arr) {
+  let newArr = [];
+  arr.forEach((value) => {
+    if (Array.isArray(value)) {
+      newArr = newArr.concat(flatten(value));
+    } else {
+      newArr.push(value);
+    }
+  });
+  return newArr;
 }
 
 function toEquatable(node) {
   if (node.props) {
     const children = node.props.children;
   
-    const equatableProps = {
-    };
+    const equatableProps = {};
   
     if (children) {
-      equatableProps.children = children.map(toEquatable);
+      equatableProps.children = flatten(children)
+        .map(toEquatable);
     }
   
     const keys = Object.keys(node.props);
@@ -85,3 +106,5 @@ function toEquatable(node) {
 
 exports.Node = Node;
 exports.toEquatable = toEquatable;
+exports.flatten = flatten;
+exports.isUnmounted = isUnmounted;

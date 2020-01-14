@@ -2,7 +2,6 @@
 'use strict';
 
 var List = require("bs-platform/lib/js/list.js");
-var $$Array = require("bs-platform/lib/js/array.js");
 var Block = require("bs-platform/lib/js/block.js");
 var Curry = require("bs-platform/lib/js/curry.js");
 var Caml_obj = require("bs-platform/lib/js/caml_obj.js");
@@ -13,9 +12,7 @@ var RenderContext$ReView = require("./RenderContext.bs.js");
 var ModuleResolver$ReView = require("./ModuleResolver.bs.js");
 
 function unmount(node, parent, index) {
-  if (node.unmountSchedule) {
-    return 0;
-  } else {
+  if (!Node$ReView.isUnmounted(node) && !node.unmountSchedule) {
     node.unmountSchedule = true;
     return Utils$ReView.scheduleAsync((function (param) {
                   node.unmountSchedule = false;
@@ -37,72 +34,71 @@ function unmount(node, parent, index) {
                           }
                         }));
                   var nodes = node.nodes;
-                  $$Array.iteri((function (i, child) {
+                  List.iteri((function (i, child) {
                           return unmount(child, node, i);
                         }), nodes);
                   parent.clearNode(index);
                   node.unmount();
                   return /* () */0;
                 }));
-  }
-}
-
-function renderResult(nodes, parent, index, root) {
-  var render = ModuleResolver$ReView.getModule("render");
-  if (typeof nodes === "number") {
-    parent.forEachNode((function (i, child) {
-            return unmount(child, parent, i);
-          }));
-    return /* () */0;
-  } else if (nodes.tag) {
-    return List.iteri((function (id, node) {
-                  return renderResult(node, parent, id, root);
-                }), nodes[0]);
   } else {
-    return Curry._4(render, nodes[0], parent, index, Caml_option.some(root));
+    return 0;
   }
 }
 
 function request(node, parent, index, root) {
-  if (node.mountSchedule) {
-    return 0;
-  } else {
+  if (!Node$ReView.isUnmounted(node) && !node.mountSchedule) {
     node.mountSchedule = true;
     return Utils$ReView.scheduleAsync((function (param) {
-                  node.mountSchedule = false;
-                  RenderContext$ReView.setContext({
-                        node: node,
-                        parent: parent,
-                        root: root,
-                        slot: {
-                          contents: 0
-                        },
-                        index: index
-                      });
-                  node.mount(parent);
-                  var component = node.component;
-                  if (component !== undefined) {
-                    var childNode = Curry._1(component.render, node.props);
-                    renderResult(childNode, node, 0, root);
-                  }
-                  RenderContext$ReView.popContext(/* () */0);
-                  parent.setNode(index, node);
-                  node.forEachState((function (id, state) {
-                          if (state !== undefined) {
-                            var match = state;
-                            if (match.tag === /* Effect */6) {
-                              var cleanup = Curry._1(match[0], /* () */0);
-                              node.setState(id, /* EffectCleanup */Block.__(7, [cleanup]));
-                              return /* () */0;
+                  if (Node$ReView.isUnmounted(node)) {
+                    return 0;
+                  } else {
+                    node.mountSchedule = false;
+                    RenderContext$ReView.setContext({
+                          node: node,
+                          parent: parent,
+                          root: root,
+                          slot: {
+                            contents: 0
+                          },
+                          index: index
+                        });
+                    node.mount(parent);
+                    var component = node.component;
+                    if (component !== undefined) {
+                      var childNode = Curry._1(component.render, node.props);
+                      var render = ModuleResolver$ReView.getModule("render");
+                      if (childNode !== undefined) {
+                        Curry._4(render, Caml_option.valFromOption(childNode), node, 0, Caml_option.some(root));
+                      } else {
+                        var match = node.getNode(0);
+                        if (match !== undefined) {
+                          unmount(Caml_option.valFromOption(match), node, 0);
+                        }
+                        
+                      }
+                    }
+                    RenderContext$ReView.popContext(/* () */0);
+                    parent.setNode(index, node);
+                    node.forEachState((function (id, state) {
+                            if (state !== undefined) {
+                              var match = state;
+                              if (match.tag === /* Effect */6) {
+                                var cleanup = Curry._1(match[0], /* () */0);
+                                node.setState(id, /* EffectCleanup */Block.__(7, [cleanup]));
+                                return /* () */0;
+                              } else {
+                                return /* () */0;
+                              }
                             } else {
                               return /* () */0;
                             }
-                          } else {
-                            return /* () */0;
-                          }
-                        }));
-                  return /* () */0;
+                          }));
+                    return /* () */0;
+                  }
                 }));
+  } else {
+    return 0;
   }
 }
 
@@ -129,7 +125,6 @@ function render(node, parent, index, root) {
 ModuleResolver$ReView.setModule("render", render);
 
 exports.unmount = unmount;
-exports.renderResult = renderResult;
 exports.request = request;
 exports.render = render;
 /*  Not a pure module */

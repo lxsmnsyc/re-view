@@ -17,7 +17,9 @@ module Test {
       setA(_ => 1000);
       setB(_ => 2000);
 
-      None;
+      Some(() => {
+        Js.log("unmounted");
+      });
     }, []);
 
     Js.log(a);
@@ -31,7 +33,7 @@ module Test {
  */
 module App {
   type props = {
-    children: list(Types.Renderer.Result.t),
+    children: list(option(Types.Node.t)),
   };
 
   let make = Component.make("App", ({ children }: props) => {
@@ -39,20 +41,22 @@ module App {
 
     Effect.use(() => {
       setTimeout(() => {
-        setState(_ => true);
-      }, 200);
+        setState(_ => !state);
+      }, 250);
       None;
     }, [state]);
 
     Js.log(state);
 
     if (!state) {
-      Fragment([
-        Fragment(children),
-      ]);
+      Fragment.make({
+        children: children,
+      });
     } else {
-      None;
-    }
+      Fragment.make({
+        children: [],
+      });
+    };
   });
 };
 
@@ -102,5 +106,5 @@ setTimeout(() => {
    */
   setTimeout(() => {
     dir(root);
-  }, 0);
+  }, 1000);
 }, 1000);

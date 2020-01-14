@@ -4,15 +4,8 @@ module Node {
 }
 
 module Renderer {
-  module Result {
-    type t =
-      | None
-      | Some(Node.t)
-      | Fragment(list(t))
-    ;
-  };
 
-  type t('a) = 'a => Result.t;
+  type t('a) = 'a => option(Node.t);
 }
 
 module Component {

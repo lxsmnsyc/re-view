@@ -4,11 +4,7 @@
 
 var $$Node = { };
 
-var Result = { };
-
-var Renderer = {
-  Result: Result
-};
+var Renderer = { };
 
 var Component = { };
 
