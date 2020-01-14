@@ -4,7 +4,11 @@
 
 var $$Node = { };
 
-var Renderer = { };
+var Result = { };
+
+var Renderer = {
+  Result: Result
+};
 
 var Component = { };
 
@@ -18,10 +22,21 @@ var Reconciler = {
 
 var EquatableNode = { };
 
+var Cleanup = { };
+
+var Effect = {
+  Cleanup: Cleanup
+};
+
+var State = {
+  Effect: Effect
+};
+
 exports.$$Node = $$Node;
 exports.Renderer = Renderer;
 exports.Component = Component;
 exports.RenderContext = RenderContext;
 exports.Reconciler = Reconciler;
 exports.EquatableNode = EquatableNode;
+exports.State = State;
 /* No side effect */

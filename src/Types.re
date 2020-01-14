@@ -1,9 +1,18 @@
 module Node {
   type t;
+
 }
 
 module Renderer {
-  type t('a) = 'a => option(Node.t);
+  module Result {
+    type t =
+      | None
+      | Some(Node.t)
+      | Fragment(list(t))
+    ;
+  };
+
+  type t('a) = 'a => Result.t;
 }
 
 module Component {
@@ -34,4 +43,26 @@ module EquatableNode {
     component: Component.t('a),
     props: 'a,
   };
+}
+
+module State {
+  module Effect {
+    module Cleanup {
+      type t = unit => unit;
+    }
+
+    type t = unit => option(Cleanup.t);
+  }
+
+  type t('state, 'action, 'dependency) =
+    | Ref('state)
+    | Constant('state)
+    | BasicState('state)
+    | SetState('state)
+    | ReducerState('state)
+    | ReducerDispatch('action)
+    | Effect(Effect.t)
+    | EffectCleanup(option(Effect.Cleanup.t))
+    | Dependency('dependency)
+  ;
 }
