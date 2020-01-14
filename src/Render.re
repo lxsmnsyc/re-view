@@ -1,6 +1,3 @@
-let call = (node: option(Types.Node.t), root: Types.Node.t) => {
-  switch (node) {
-    | Some(actual) => Reconciler.render(actual, root, None, None);
-    | None => ();
-  }
+let call = (node: Types.Renderer.Result.t, root: Types.Node.t) => {
+  Reconciler.renderResult(node, root, 0, root);
 };
