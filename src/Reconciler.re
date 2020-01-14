@@ -1,4 +1,58 @@
 
+
+let rec unmount = (node: Types.Node.t, parent: Types.Node.t, index: int): unit => {
+  if (!Node.getUnmountSchedule(node)) {
+    Node.setUnmountSchedule(node, true);
+
+    Utils.scheduleAsync(() => {
+      Node.setUnmountSchedule(node, false);
+
+      /**
+       * Run all effect cleanup
+       */
+      Node.forEachState(node, (_, state) => {
+        switch (state) {
+          | Some(Types.State.EffectCleanup(Some(cleanup))) => {
+            cleanup();
+          }
+          | _ => ();
+        }
+      });
+
+      let nodes = Node.nodes(node);
+
+      nodes |> Array.iteri((i, child) => {
+        unmount(child, node, i);
+      });
+
+      Node.clearNode(parent, index);
+      Node.unmount(node);
+    });
+  }
+};
+
+let rec renderResult = (nodes: Types.Renderer.Result.t, parent: Types.Node.t, index: int, root: Types.Node.t) => {
+  /**
+   * Since there are dependency cycles, load the render function
+   */
+  let render: Types.Reconciler.Render.t = ModuleResolver.getModule("render");
+  switch (nodes) {
+    | Fragment(list) => {
+      list |> List.iteri((id, node) => {
+        renderResult(node, parent, id, root);
+      });
+    }
+    | Some(node) => {
+      render(node, parent, Some(index), Some(root));
+    }
+    | None => {
+      Node.forEachNode(parent, (i, child) => {
+        unmount(child, parent, i);
+      });
+    };
+  };
+};
+
 let request = (node: Types.Node.t, parent: Types.Node.t, index: int, root: Types.Node.t): unit => {
   if (!Node.getMountSchedule(node)) {
     Node.setMountSchedule(node, true);
@@ -30,20 +84,7 @@ let request = (node: Types.Node.t, parent: Types.Node.t, index: int, root: Types
         | Some(component) => {
           let childNode = component.render(Node.props(node));
 
-          switch (childNode) {
-            | Some(actual) => {
-              /**
-               * Since there are dependency cycles, load the render function
-               */
-              let render: Types.Reconciler.Render.t = ModuleResolver.getModule("render");
-
-              /**
-               * Render child node to node
-               */
-              render(actual, node, None, Some(root));
-            }
-            | None => ();
-          }
+          renderResult(childNode, node, 0, root);
         }
         | None => ();
       }
@@ -57,24 +98,20 @@ let request = (node: Types.Node.t, parent: Types.Node.t, index: int, root: Types
        * Render complete, add node to parent
        */
       Node.setNode(parent, index, node);
-    });
-  }
-};
 
-let rec unmount = (node: Types.Node.t, parent: Types.Node.t, index: int): unit => {
-  if (!Node.getUnmountSchedule(node)) {
-    Node.setUnmountSchedule(node, true);
+      /**
+       * Run all effects
+       */
+      Node.forEachState(node, (id, state) => {
+        switch (state) {
+          | Some(Types.State.Effect(effect)) => {
+            let cleanup = effect();
 
-    Utils.scheduleAsync(() => {
-      Node.setUnmountSchedule(node, false);
-      let nodes = Node.nodes(node);
-
-      nodes |> Array.iteri((i, child) => {
-        unmount(child, node, i);
+            Node.setState(node, id, EffectCleanup(cleanup));
+          }
+          | _ => ();
+        }
       });
-
-      Node.clearNode(parent, index);
-      Node.unmount(node);
     });
   }
 };
