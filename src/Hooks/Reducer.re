@@ -11,7 +11,8 @@ let use = (reducer: reducer('state, 'action), initialState: 'state): ('state, di
 
     let actualState: 'state = {
       switch(state) {
-        | Some(value) => value;
+        | Some(ReducerState(value)) => value;
+        | Some(_) => raise(Exception.IllegalSlotAccess);
         | None => {
           /**
            * Set slot values
@@ -25,26 +26,28 @@ let use = (reducer: reducer('state, 'action), initialState: 'state): ('state, di
 
     let actualDispatch: dispatch('action) = {
       switch (dispatch) {
-        | Some(value) => value;
+        | Some(ReducerDispatch(value)) => value;
+        | Some(_) => raise(Exception.IllegalSlotAccess);
         | None => {
           /**
            * Create new dispatch
            */
           let newDispatch = (action: 'action) => {
-            let prevState: option('state) = Node.getState(node, current);
+            let prevState = Node.getState(node, current);
 
             switch (prevState) {
-              | Some(value) => {
+              | Some(ReducerState(value)) => {
                 let newState = reducer(value, action);
                 if (value != newState) {
-                  Node.setState(node, current, newState);
+                  Node.setState(node, current, ReducerState(newState));
                   Reconciler.request(node, parent, index, root);
                 }
               }
+              | Some(_) => raise(Exception.IllegalSlotAccess);
               | None => raise(Exception.IllegalSlotAccess);
             }
           };
-          Node.setState(node, current + 1, newDispatch);
+          Node.setState(node, current + 1, ReducerDispatch(newDispatch));
 
           newDispatch;
         }
