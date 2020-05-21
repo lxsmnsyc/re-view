@@ -1,0 +1,7 @@
+exception MissingBasicComponentConstructor;
+exception OutOfContextHookCall;
+exception IncompatibleHook;
+exception MissingContext;
+exception DesyncContextValue;
+exception UnboundContextInstance;
+exception InvalidHostConstructor;

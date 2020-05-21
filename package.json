@@ -12,6 +12,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "bs-let": "^0.1.16",
     "bs-platform": "^7.0.1"
   },
   "dependencies": {

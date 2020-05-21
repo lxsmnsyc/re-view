@@ -1,2 +1,0 @@
-exception IllegalRenderContextAccess;
-exception IllegalSlotAccess;

@@ -1,6 +1,7 @@
 ####{BSB GENERATED: NO EDIT
 B lib/bs
 FLG -open ReView
+FLG -ppx /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-let/ppx
 FLG -ppx /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-platform/lib/bsppx.exe
 S /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-platform/lib/ocaml
 B /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-platform/lib/ocaml
@@ -10,8 +11,4 @@ S /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-webapi/lib/ocaml
 B /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-webapi/lib/ocaml
 S src
 B lib/bs/src
-S src/Hooks
-B lib/bs/src/Hooks
-S src/Components
-B lib/bs/src/Components
 ####BSB GENERATED: NO EDIT}
