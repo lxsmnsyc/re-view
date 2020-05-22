@@ -13,6 +13,4 @@ S src
 B lib/bs/src
 S src/DOM
 B lib/bs/src/DOM
-S src/DOM/Elements
-B lib/bs/src/DOM/Elements
 ####BSB GENERATED: NO EDIT}
