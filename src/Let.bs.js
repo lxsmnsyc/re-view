@@ -4,14 +4,6 @@
 var Curry = require("bs-platform/lib/js/curry.js");
 var Caml_option = require("bs-platform/lib/js/caml_option.js");
 
-function someOrError(base, error) {
-  if (base !== undefined) {
-    return Caml_option.valFromOption(base);
-  } else {
-    throw error;
-  }
-}
-
 function let_(value, mapper) {
   if (value !== undefined) {
     return Curry._1(mapper, Caml_option.valFromOption(value));
@@ -49,7 +41,6 @@ var OptionOrError = {
   let_: let_$2
 };
 
-exports.someOrError = someOrError;
 exports.$$Option = $$Option;
 exports.OptionUnit = OptionUnit;
 exports.OptionOrError = OptionOrError;
