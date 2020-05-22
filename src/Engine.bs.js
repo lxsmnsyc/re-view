@@ -2,6 +2,7 @@
 'use strict';
 
 var $$Array = require("bs-platform/lib/js/array.js");
+var Block = require("bs-platform/lib/js/block.js");
 var Curry = require("bs-platform/lib/js/curry.js");
 var Caml_obj = require("bs-platform/lib/js/caml_obj.js");
 var Let$ReView = require("./Let.bs.js");
@@ -10,68 +11,42 @@ var Opaque$ReView = require("./Opaque.bs.js");
 var Exceptions$ReView = require("./Exceptions.bs.js");
 var Caml_js_exceptions = require("bs-platform/lib/js/caml_js_exceptions.js");
 
-function Engine(Reconciler) {
+function Make(Reconciler) {
+  var index = {
+    contents: 0
+  };
   var make = function (fiberTag, props) {
     return {
-            constructor: {
-              contents: undefined
-            },
+            constructor: undefined,
             fiberTag: fiberTag,
-            workTag: {
-              contents: /* None */0
-            },
-            parent: {
-              contents: undefined
-            },
-            alternate: {
-              contents: undefined
-            },
-            sibling: {
-              contents: undefined
-            },
-            child: {
-              contents: undefined
-            },
-            children: {
-              contents: undefined
-            },
-            key: {
-              contents: undefined
-            },
-            index: {
-              contents: 0
-            },
-            indeces: {
-              contents: 0
-            },
+            workTag: /* None */0,
+            parent: undefined,
+            alternate: undefined,
+            sibling: undefined,
+            child: undefined,
+            children: undefined,
+            identifier: 0,
+            key: undefined,
+            index: 0,
+            indeces: 0,
             map: Opaque$ReView.$$Map.make(/* () */0),
-            ref: {
-              contents: undefined
-            },
-            props: Opaque$ReView.convert(props),
-            instance: {
-              contents: undefined
-            },
-            error: {
-              contents: undefined
-            },
-            hooks: {
-              contents: Opaque$ReView.$$Array.make(/* () */0)
-            },
+            ref: /* None */0,
+            props: props,
+            instance: undefined,
+            error: undefined,
+            hooks: Opaque$ReView.$$Array.make(/* () */0),
             dependencies: Opaque$ReView.$$Set.make(/* () */0),
-            shouldUpdate: {
-              contents: false
-            }
+            shouldUpdate: false
           };
   };
   var detach = function (fiber) {
     Let$ReView.$$Option.let_(fiber, (function (actualFiber) {
-            var child = actualFiber.child.contents;
-            var sibling = actualFiber.sibling.contents;
-            var alternate = actualFiber.alternate.contents;
-            actualFiber.child.contents = undefined;
-            actualFiber.sibling.contents = undefined;
-            actualFiber.alternate.contents = undefined;
+            var child = actualFiber.child;
+            var sibling = actualFiber.sibling;
+            var alternate = actualFiber.alternate;
+            actualFiber.child = undefined;
+            actualFiber.sibling = undefined;
+            actualFiber.alternate = undefined;
             detach(alternate);
             detach(child);
             detach(sibling);
@@ -79,9 +54,16 @@ function Engine(Reconciler) {
           }));
     return /* () */0;
   };
+  var createIndex = function (param) {
+    var currentIndex = index.contents + 1 | 0;
+    index.contents = currentIndex;
+    return currentIndex;
+  };
   var Fiber = {
+    index: index,
     make: make,
-    detach: detach
+    detach: detach,
+    createIndex: createIndex
   };
   var Instance = { };
   var make$1 = function (param, param$1) {
@@ -93,11 +75,11 @@ function Engine(Reconciler) {
             fiberTag: /* ContextProvider */8,
             key: param.key,
             ref: param.ref,
-            props: Opaque$ReView.convert({
-                  context: context,
-                  value: Caml_option.some(actualValue),
-                  children: param$1.children
-                })
+            props: {
+              context: context,
+              value: Caml_option.some(actualValue),
+              children: param$1.children
+            }
           };
   };
   var Provider = {
@@ -106,13 +88,13 @@ function Engine(Reconciler) {
   var make$2 = function (param, param$1) {
     return {
             constructor: undefined,
-            fiberTag: /* ContextProvider */8,
+            fiberTag: /* ContextConsumer */9,
             key: param.key,
             ref: param.ref,
-            props: Opaque$ReView.convert({
-                  context: param$1.context,
-                  build: param$1.build
-                })
+            props: {
+              context: param$1.context,
+              build: param$1.build
+            }
           };
   };
   var Consumer = {
@@ -120,18 +102,21 @@ function Engine(Reconciler) {
   };
   var read = function (wip, context) {
     return Let$ReView.OptionOrError.let_(/* tuple */[
-                wip.parent.contents,
+                wip.parent,
                 Exceptions$ReView.MissingContext
               ], (function (param) {
-                  var actualProps = Opaque$ReView.$$return(param.props);
-                  if (param.fiberTag === /* ContextProvider */8 && Caml_obj.caml_equal(actualProps.context, context)) {
+                  var parent = param.parent;
+                  var instance = param.instance;
+                  if (param.fiberTag === /* ContextProvider */8 && Caml_obj.caml_equal(param.props.context, context)) {
                     return Let$ReView.OptionOrError.let_(/* tuple */[
-                                param.instance.contents,
+                                instance,
                                 Exceptions$ReView.MissingContext
-                              ], Opaque$ReView.$$return);
+                              ], (function (actualInstance) {
+                                  return actualInstance;
+                                }));
                   } else {
                     return Let$ReView.OptionOrError.let_(/* tuple */[
-                                param.parent.contents,
+                                parent,
                                 Exceptions$ReView.MissingContext
                               ], (function (actualParent) {
                                   return read(actualParent, context);
@@ -150,8 +135,8 @@ function Engine(Reconciler) {
             constructor: undefined,
             fiberTag: /* ErrorBoundary */7,
             key: param.key,
-            ref: undefined,
-            props: Opaque$ReView.convert(props)
+            ref: /* None */0,
+            props: props
           };
   };
   var ErrorBoundary = {
@@ -162,41 +147,86 @@ function Engine(Reconciler) {
             constructor: undefined,
             fiberTag: /* Fragment */3,
             key: param.key,
-            ref: undefined,
-            props: Opaque$ReView.convert(props)
+            ref: /* None */0,
+            props: props
           };
   };
   var Fragment = {
     make: make$4
   };
-  var make$5 = function (param, props) {
-    return {
-            constructor: undefined,
-            fiberTag: /* Root */2,
-            key: param.key,
-            ref: param.ref,
-            props: Opaque$ReView.convert(props)
-          };
-  };
-  var Root = {
-    make: make$5
-  };
-  var make$6 = function (param, param$1) {
+  var Root = { };
+  var make$5 = function (param, param$1) {
     var constructor = param$1.constructor;
     return {
-            constructor: Caml_option.some(Opaque$ReView.convert(constructor)),
+            constructor: Caml_option.some(constructor),
             fiberTag: /* Host */1,
             key: param.key,
             ref: param.ref,
-            props: Opaque$ReView.convert({
-                  constructor: constructor,
-                  attributes: param$1.attributes,
-                  children: param$1.children
-                })
+            props: {
+              constructor: constructor,
+              attributes: param$1.attributes,
+              children: param$1.children
+            }
           };
   };
   var Host = {
-    make: make$6
+    make: make$5
+  };
+  var Basic = function (C) {
+    var make = function (param, props) {
+      return {
+              constructor: Caml_option.some(C.make),
+              fiberTag: /* Basic */4,
+              key: param.key,
+              ref: param.ref,
+              props: props
+            };
+    };
+    return {
+            make: make
+          };
+  };
+  var MemoBasic = function (C) {
+    var make = function (param, props) {
+      return {
+              constructor: Caml_option.some(C.make),
+              fiberTag: /* MemoBasic */6,
+              key: param.key,
+              ref: param.ref,
+              props: props
+            };
+    };
+    return {
+            make: make
+          };
+  };
+  var Memo = function (C) {
+    var make = function (param, props) {
+      return {
+              constructor: Caml_option.some(C.make),
+              fiberTag: /* Memo */5,
+              key: param.key,
+              ref: param.ref,
+              props: props
+            };
+    };
+    return {
+            make: make
+          };
+  };
+  var Component = function (C) {
+    var make = function (param, props) {
+      return {
+              constructor: Caml_option.some(C.make),
+              fiberTag: /* Component */0,
+              key: param.key,
+              ref: param.ref,
+              props: props
+            };
+    };
+    return {
+            make: make
+          };
   };
   var currentRoot = {
     contents: undefined
@@ -210,20 +240,22 @@ function Engine(Reconciler) {
   var update = function (param) {
     return Let$ReView.OptionUnit.let_(currentRoot.contents, (function (current) {
                   var fiber = make(/* Root */2, current.props);
-                  fiber.instance.contents = current.instance.contents;
-                  fiber.alternate.contents = current.alternate.contents;
+                  fiber.instance = current.instance;
+                  fiber.alternate = current.alternate;
                   wipRoot.contents = fiber;
                   nextUnitOfWork.contents = fiber;
                   return /* () */0;
                 }));
   };
   var render = function (element, container) {
+    var props_children = element;
     var props = {
-      children: /* array */[element]
+      value: container,
+      children: props_children
     };
     var fiber = make(/* Root */2, props);
-    fiber.instance.contents = Caml_option.some(Opaque$ReView.convert(container));
-    fiber.alternate.contents = currentRoot.contents;
+    fiber.instance = Caml_option.some(container);
+    fiber.alternate = currentRoot.contents;
     wipRoot.contents = fiber;
     nextUnitOfWork.contents = fiber;
     return /* () */0;
@@ -236,7 +268,7 @@ function Engine(Reconciler) {
     render: render
   };
   var getHostParent = function (wip) {
-    return Let$ReView.$$Option.let_(wip.parent.contents, (function (parent) {
+    return Let$ReView.$$Option.let_(wip.parent, (function (parent) {
                   if (parent.fiberTag === /* Host */1 || parent.fiberTag === /* Root */2) {
                     return parent;
                   } else {
@@ -245,8 +277,8 @@ function Engine(Reconciler) {
                 }));
   };
   var getInstanceIndex = function (wip) {
-    var index = wip.indeces.contents;
-    wip.indeces.contents = index + 1 | 0;
+    var index = wip.indeces;
+    wip.indeces = index + 1 | 0;
     return index;
   };
   var Utils = {
@@ -254,15 +286,15 @@ function Engine(Reconciler) {
     getInstanceIndex: getInstanceIndex
   };
   var attachFiberAlternate = function (oldFiber, newFiber) {
-    detach(oldFiber.alternate.contents);
-    oldFiber.alternate.contents = undefined;
-    newFiber.alternate.contents = oldFiber;
+    detach(oldFiber.alternate);
+    oldFiber.alternate = undefined;
+    newFiber.alternate = oldFiber;
     return /* () */0;
   };
   var mapFiberToParent = function (parent, newFiber, index, key) {
-    newFiber.parent.contents = parent;
-    newFiber.index.contents = index;
-    newFiber.key.contents = key;
+    newFiber.parent = parent;
+    newFiber.index = index;
+    newFiber.key = key;
     if (key !== undefined) {
       return Opaque$ReView.$$Map.set(parent.map, key, newFiber);
     } else {
@@ -271,34 +303,37 @@ function Engine(Reconciler) {
   };
   var replaceFiber = function (parent, oldFiber, element, index, key) {
     var fiber = make(element.fiberTag, element.props);
-    fiber.constructor.contents = element.constructor;
-    fiber.workTag.contents = /* Replace */5;
+    fiber.constructor = element.constructor;
+    fiber.workTag = /* Replace */4;
+    fiber.identifier = createIndex(/* () */0);
     attachFiberAlternate(oldFiber, fiber);
     mapFiberToParent(parent, fiber, index, key);
     return fiber;
   };
   var deleteFiber = function (parent, oldFiber, index, key) {
     var fiber = make(oldFiber.fiberTag, oldFiber.props);
-    fiber.constructor.contents = oldFiber.constructor.contents;
-    fiber.workTag.contents = /* Delete */4;
-    fiber.instance.contents = oldFiber.instance.contents;
+    fiber.constructor = oldFiber.constructor;
+    fiber.workTag = /* Delete */3;
+    fiber.instance = oldFiber.instance;
     attachFiberAlternate(oldFiber, fiber);
     mapFiberToParent(parent, fiber, index, key);
     return fiber;
   };
   var updateFiberFromElement = function (parent, oldFiber, element, index, key) {
     var fiber = make(oldFiber.fiberTag, element.props);
-    fiber.workTag.contents = /* Update */3;
-    fiber.constructor.contents = oldFiber.constructor.contents;
-    fiber.instance.contents = oldFiber.instance.contents;
+    fiber.workTag = /* Update */2;
+    fiber.constructor = oldFiber.constructor;
+    fiber.instance = oldFiber.instance;
+    fiber.identifier = oldFiber.identifier;
     attachFiberAlternate(oldFiber, fiber);
     mapFiberToParent(parent, fiber, index, key);
     return fiber;
   };
   var createFiberFromElement = function (parent, element, index, key) {
     var fiber = make(element.fiberTag, element.props);
-    fiber.workTag.contents = /* Placement */2;
-    fiber.constructor.contents = element.constructor;
+    fiber.workTag = /* Placement */1;
+    fiber.constructor = element.constructor;
+    fiber.identifier = createIndex(/* () */0);
     mapFiberToParent(parent, fiber, index, key);
     return fiber;
   };
@@ -307,8 +342,8 @@ function Engine(Reconciler) {
       var actualOldFiber = oldFiber;
       if (element !== undefined) {
         var actualElement = element;
-        return actualOldFiber.workTag.contents === /* Delete */4 ? createFiberFromElement(parent, actualElement, index, key) : (
-                  actualElement.fiberTag !== actualOldFiber.fiberTag || Caml_obj.caml_notequal(actualElement.constructor, actualOldFiber.constructor.contents) ? replaceFiber(parent, actualOldFiber, actualElement, index, key) : updateFiberFromElement(parent, actualOldFiber, actualElement, index, key)
+        return actualOldFiber.workTag === /* Delete */3 ? createFiberFromElement(parent, actualElement, index, key) : (
+                  actualElement.fiberTag !== actualOldFiber.fiberTag || Caml_obj.caml_notequal(actualElement.constructor, actualOldFiber.constructor) ? replaceFiber(parent, actualOldFiber, actualElement, index, key) : updateFiberFromElement(parent, actualOldFiber, actualElement, index, key)
                 );
       } else {
         return deleteFiber(parent, actualOldFiber, index, key);
@@ -339,11 +374,11 @@ function Engine(Reconciler) {
     };
     var linkFiber = function (newFiber, hasElement) {
       return Let$ReView.OptionUnit.let_(newFiber, (function (fiber) {
-                    if (wip.child.contents === undefined) {
-                      wip.child.contents = fiber;
+                    if (wip.child === undefined) {
+                      wip.child = fiber;
                     } else if (hasElement) {
                       Let$ReView.OptionUnit.let_(previousFiber.contents, (function (prev) {
-                              prev.sibling.contents = fiber;
+                              prev.sibling = fiber;
                               return /* () */0;
                             }));
                     }
@@ -367,14 +402,14 @@ function Engine(Reconciler) {
             var iterateFibers = function (oldFiber) {
               return Let$ReView.OptionUnit.let_(oldFiber, (function (fiber) {
                             if (!Opaque$ReView.$$Set.has(marked, fiber)) {
-                              linkFiber(deleteFiber(wip, fiber, fiber.index.contents, fiber.key.contents), false);
+                              linkFiber(deleteFiber(wip, fiber, fiber.index, fiber.key), false);
                             }
-                            return iterateFibers(fiber.sibling.contents);
+                            return iterateFibers(fiber.sibling);
                           }));
             };
-            return iterateFibers(actualCurrent.child.contents);
+            return iterateFibers(actualCurrent.child);
           }));
-    return wip.child.contents;
+    return wip.child;
   };
   var ReconcileChildren = {
     attachFiberAlternate: attachFiberAlternate,
@@ -387,6 +422,7 @@ function Engine(Reconciler) {
     getMatchingFiber: getMatchingFiber,
     call: call
   };
+  var Slot = { };
   var hookFiber = {
     contents: undefined
   };
@@ -397,8 +433,8 @@ function Engine(Reconciler) {
     hookFiber.contents = wip;
     hookCursor.contents = 0;
     return Let$ReView.OptionUnit.let_(current, (function (actualCurrent) {
-                  wip.hooks.contents = actualCurrent.hooks.contents;
-                  actualCurrent.hooks.contents = Opaque$ReView.$$Array.make(/* () */0);
+                  wip.hooks = actualCurrent.hooks;
+                  actualCurrent.hooks = Opaque$ReView.$$Array.make(/* () */0);
                   return /* () */0;
                 }));
   };
@@ -415,10 +451,10 @@ function Engine(Reconciler) {
                   return fiber;
                 }));
   };
-  var make$7 = function (tag) {
+  var make$6 = function (tag) {
     var fiber = getCurrentFiber(/* () */0);
+    var slot = Opaque$ReView.$$Array.get(fiber.hooks, hookCursor.contents);
     hookCursor.contents = hookCursor.contents + 1 | 0;
-    var slot = Opaque$ReView.$$Array.get(fiber.hooks.contents, hookCursor.contents);
     if (slot !== undefined) {
       var actualSlot = slot;
       if (actualSlot.tag !== tag) {
@@ -433,38 +469,33 @@ function Engine(Reconciler) {
         tag: tag,
         value: newSlot_value
       };
-      Opaque$ReView.$$Array.set(fiber.hooks.contents, hookCursor.contents, newSlot);
+      Opaque$ReView.$$Array.set(fiber.hooks, hookCursor.contents, newSlot);
       return newSlot;
     }
   };
   var forEach = function (wip, handler) {
-    return Opaque$ReView.$$Array.forEach(wip.hooks.contents, (function (slot, param) {
+    return Opaque$ReView.$$Array.forEach(wip.hooks, (function (slot, param) {
                   return Curry._1(handler, slot);
                 }));
   };
-  var clear = function (fiber) {
-    fiber.hooks.contents = Opaque$ReView.$$Array.make(/* () */0);
-    return /* () */0;
-  };
-  var HooksContext = {
+  var RenderContext = {
     hookFiber: hookFiber,
     hookCursor: hookCursor,
     render: render$1,
     finishRender: finishRender,
     getCurrentFiber: getCurrentFiber,
-    make: make$7,
-    forEach: forEach,
-    clear: clear
+    make: make$6,
+    forEach: forEach
   };
   var use = function (callback, dependency) {
-    var state = make$7(/* Callback */0);
-    var dep = make$7(/* Dependency */3);
+    var state = make$6(/* Callback */0);
+    var dep = make$6(/* Dependency */3);
     var match = state.value.contents;
-    if (match !== undefined && !Caml_obj.caml_notequal(dep.value.contents, Caml_option.some(Opaque$ReView.convert(dependency)))) {
-      return Opaque$ReView.$$return(Caml_option.valFromOption(match));
+    if (match !== undefined && !Caml_obj.caml_notequal(dep.value.contents, Caml_option.some(dependency))) {
+      return Caml_option.valFromOption(match);
     } else {
-      state.value.contents = Caml_option.some(Opaque$ReView.convert(callback));
-      dep.value.contents = Caml_option.some(Opaque$ReView.convert(dependency));
+      state.value.contents = Caml_option.some(callback);
+      dep.value.contents = Caml_option.some(dependency);
       return callback;
     }
   };
@@ -472,13 +503,13 @@ function Engine(Reconciler) {
     use: use
   };
   var use$1 = function (supplier) {
-    var state = make$7(/* Constant */1);
+    var state = make$6(/* Constant */1);
     var match = state.value.contents;
     if (match !== undefined) {
-      return Opaque$ReView.$$return(Caml_option.valFromOption(match));
+      return Caml_option.valFromOption(match);
     } else {
       var value = Curry._1(supplier, /* () */0);
-      state.value.contents = Caml_option.some(Opaque$ReView.convert(value));
+      state.value.contents = Caml_option.some(value);
       return value;
     }
   };
@@ -495,33 +526,32 @@ function Engine(Reconciler) {
     use: use$2
   };
   var use$3 = function (effect, dependency) {
-    var state = make$7(/* Effect */4);
-    var dep = make$7(/* Dependency */3);
+    var state = make$6(/* Effect */4);
+    var dep = make$6(/* Dependency */3);
     var match = dep.value.contents;
     if (match !== undefined) {
       if (Caml_obj.caml_notequal(Caml_option.valFromOption(match), dependency)) {
         return Let$ReView.OptionUnit.let_(state.value.contents, (function (opaquePrev) {
-                      var match = Opaque$ReView.$$return(opaquePrev);
-                      state.value.contents = Caml_option.some(Opaque$ReView.convert(/* tuple */[
-                                match[0],
-                                match[1],
-                                /* Update */3
-                              ]));
-                      dep.value.contents = Caml_option.some(Opaque$ReView.convert(dependency));
+                      state.value.contents = /* tuple */[
+                        opaquePrev[0],
+                        opaquePrev[1],
+                        /* Update */2
+                      ];
+                      dep.value.contents = Caml_option.some(dependency);
                       return /* () */0;
                     }));
       } else {
         return 0;
       }
     } else {
-      state.value.contents = Caml_option.some(Opaque$ReView.convert(/* tuple */[
-                effect,
-                {
-                  contents: undefined
-                },
-                /* Placement */2
-              ]));
-      dep.value.contents = Caml_option.some(Opaque$ReView.convert(dependency));
+      state.value.contents = /* tuple */[
+        effect,
+        {
+          contents: undefined
+        },
+        /* Placement */1
+      ];
+      dep.value.contents = Caml_option.some(dependency);
       return /* () */0;
     }
   };
@@ -529,15 +559,15 @@ function Engine(Reconciler) {
     use: use$3
   };
   var use$4 = function (param) {
-    var dispatch = make$7(/* ForceUpdate */5);
+    var dispatch = make$6(/* ForceUpdate */5);
     var match = dispatch.value.contents;
     if (match !== undefined) {
-      return Opaque$ReView.$$return(Caml_option.valFromOption(match));
+      return Caml_option.valFromOption(match);
     } else {
       var callback = function (param) {
         return update(/* () */0);
       };
-      dispatch.value.contents = Caml_option.some(Opaque$ReView.convert(callback));
+      dispatch.value.contents = Caml_option.some(callback);
       return callback;
     }
   };
@@ -545,33 +575,32 @@ function Engine(Reconciler) {
     use: use$4
   };
   var use$5 = function (effect, dependency) {
-    var state = make$7(/* LayoutEffect */6);
-    var dep = make$7(/* Dependency */3);
+    var state = make$6(/* LayoutEffect */6);
+    var dep = make$6(/* Dependency */3);
     var match = dep.value.contents;
     if (match !== undefined) {
       if (Caml_obj.caml_notequal(Caml_option.valFromOption(match), dependency)) {
         return Let$ReView.OptionUnit.let_(state.value.contents, (function (opaquePrev) {
-                      var match = Opaque$ReView.$$return(opaquePrev);
-                      state.value.contents = Caml_option.some(Opaque$ReView.convert(/* tuple */[
-                                match[0],
-                                match[1],
-                                /* Update */3
-                              ]));
-                      dep.value.contents = Caml_option.some(Opaque$ReView.convert(dependency));
+                      state.value.contents = /* tuple */[
+                        opaquePrev[0],
+                        opaquePrev[1],
+                        /* Update */2
+                      ];
+                      dep.value.contents = Caml_option.some(dependency);
                       return /* () */0;
                     }));
       } else {
         return 0;
       }
     } else {
-      state.value.contents = Caml_option.some(Opaque$ReView.convert(/* tuple */[
-                effect,
-                {
-                  contents: undefined
-                },
-                /* Placement */2
-              ]));
-      dep.value.contents = Caml_option.some(Opaque$ReView.convert(dependency));
+      state.value.contents = /* tuple */[
+        effect,
+        {
+          contents: undefined
+        },
+        /* Placement */1
+      ];
+      dep.value.contents = Caml_option.some(dependency);
       return /* () */0;
     }
   };
@@ -579,56 +608,55 @@ function Engine(Reconciler) {
     use: use$5
   };
   var use$6 = function (supplier, dependency) {
-    var state = make$7(/* Memo */7);
-    var dep = make$7(/* Dependency */3);
+    var state = make$6(/* Memo */7);
+    var dep = make$6(/* Dependency */3);
     var match = state.value.contents;
     if (match !== undefined) {
-      if (Caml_obj.caml_notequal(dep.value.contents, Caml_option.some(Opaque$ReView.convert(dependency)))) {
+      if (Caml_obj.caml_notequal(dep.value.contents, Caml_option.some(dependency))) {
         var value = Curry._1(supplier, /* () */0);
-        state.value.contents = Caml_option.some(Opaque$ReView.convert(value));
-        dep.value.contents = Caml_option.some(Opaque$ReView.convert(dependency));
+        state.value.contents = Caml_option.some(value);
+        dep.value.contents = Caml_option.some(dependency);
         return value;
       } else {
-        return Opaque$ReView.$$return(Caml_option.valFromOption(match));
+        return Caml_option.valFromOption(match);
       }
     } else {
       var value$1 = Curry._1(supplier, /* () */0);
-      state.value.contents = Caml_option.some(Opaque$ReView.convert(value$1));
-      dep.value.contents = Caml_option.some(Opaque$ReView.convert(dependency));
+      state.value.contents = Caml_option.some(value$1);
+      dep.value.contents = Caml_option.some(dependency);
       return value$1;
     }
   };
-  var Memo = {
+  var Memo$1 = {
     use: use$6
   };
   var use$7 = function (reducer, initial) {
     var wip = getCurrentFiber(/* () */0);
-    var state = make$7(/* ReducerState */11);
-    var dispatch = make$7(/* ReducerDispatch */12);
+    var state = make$6(/* ReducerState */10);
+    var dispatch = make$6(/* ReducerDispatch */11);
     var match = state.value.contents;
     var match$1 = dispatch.value.contents;
     if (match !== undefined && match$1 !== undefined) {
       return /* tuple */[
-              Opaque$ReView.$$return(Caml_option.valFromOption(match)),
-              Opaque$ReView.$$return(Caml_option.valFromOption(match$1))
+              Caml_option.valFromOption(match),
+              Caml_option.valFromOption(match$1)
             ];
     }
     var initialState = Curry._1(initial, /* () */0);
     var callback = function (action) {
       return Let$ReView.OptionUnit.let_(state.value.contents, (function (opaqueValue) {
-                    var actualValue = Opaque$ReView.$$return(opaqueValue);
-                    var newState = Curry._2(reducer, actualValue, action);
-                    if (Caml_obj.caml_notequal(newState, actualValue)) {
-                      state.value.contents = Caml_option.some(Opaque$ReView.convert(newState));
-                      wip.shouldUpdate.contents = true;
+                    var newState = Curry._2(reducer, opaqueValue, action);
+                    if (Caml_obj.caml_notequal(newState, opaqueValue)) {
+                      state.value.contents = Caml_option.some(newState);
+                      wip.shouldUpdate = true;
                       return update(/* () */0);
                     } else {
                       return 0;
                     }
                   }));
     };
-    state.value.contents = Caml_option.some(Opaque$ReView.convert(initialState));
-    dispatch.value.contents = Caml_option.some(Opaque$ReView.convert(callback));
+    state.value.contents = Caml_option.some(initialState);
+    dispatch.value.contents = Caml_option.some(callback);
     return /* tuple */[
             initialState,
             callback
@@ -637,15 +665,106 @@ function Engine(Reconciler) {
   var Reducer = {
     use: use$7
   };
-  var HooksFunction = {
+  var use$8 = function (initial) {
+    var wip = getCurrentFiber(/* () */0);
+    var state = make$6(/* State */8);
+    var dispatch = make$6(/* SetState */9);
+    var match = state.value.contents;
+    var match$1 = dispatch.value.contents;
+    if (match !== undefined && match$1 !== undefined) {
+      return /* tuple */[
+              Caml_option.valFromOption(match),
+              Caml_option.valFromOption(match$1)
+            ];
+    }
+    var initialState = Curry._1(initial, /* () */0);
+    var callback = function (action) {
+      return Let$ReView.OptionUnit.let_(state.value.contents, (function (opaqueValue) {
+                    var newState = Curry._1(action, /* () */0);
+                    if (newState !== opaqueValue) {
+                      state.value.contents = Caml_option.some(newState);
+                      wip.shouldUpdate = true;
+                      return update(/* () */0);
+                    } else {
+                      return 0;
+                    }
+                  }));
+    };
+    state.value.contents = Caml_option.some(initialState);
+    dispatch.value.contents = Caml_option.some(callback);
+    return /* tuple */[
+            initialState,
+            callback
+          ];
+  };
+  var State = {
+    use: use$8
+  };
+  var use$9 = function (initialValue) {
+    var state = make$6(/* Reference */13);
+    var match = state.value.contents;
+    if (match !== undefined) {
+      return Caml_option.valFromOption(match);
+    } else {
+      var value = /* Mutable */Block.__(0, [{
+            contents: Caml_option.some(initialValue)
+          }]);
+      state.value.contents = Caml_option.some(value);
+      return value;
+    }
+  };
+  var Reference = {
+    use: use$9
+  };
+  var use$10 = function (initialValue) {
+    var state = make$6(/* Mutable */12);
+    var match = state.value.contents;
+    if (match !== undefined) {
+      return Caml_option.valFromOption(match);
+    } else {
+      var value = {
+        contents: initialValue
+      };
+      state.value.contents = Caml_option.some(value);
+      return value;
+    }
+  };
+  var Mutable = {
+    use: use$10
+  };
+  var use$11 = function (param) {
+    var wip = getCurrentFiber(/* () */0);
+    var state = make$6(/* Identifier */14);
+    var match = state.value.contents;
+    if (match !== undefined) {
+      return Caml_option.valFromOption(match);
+    } else {
+      var value = wip.identifier;
+      state.value.contents = Caml_option.some(value);
+      return value;
+    }
+  };
+  var Identifier = {
+    use: use$11
+  };
+  var Functions = {
     Callback: Callback,
     Constant: Constant,
     Context: Context$1,
     Effect: Effect,
     ForceUpdate: ForceUpdate,
     LayoutEffect: LayoutEffect,
-    Memo: Memo,
-    Reducer: Reducer
+    Memo: Memo$1,
+    Reducer: Reducer,
+    State: State,
+    Reference: Reference,
+    Mutable: Mutable,
+    Identifier: Identifier
+  };
+  var Hooks = {
+    Slot: Slot,
+    RenderContext: RenderContext,
+    Functions: Functions
   };
   var safelyRender = function (wip, render) {
     try {
@@ -653,21 +772,20 @@ function Engine(Reconciler) {
     }
     catch (raw_e){
       var e = Caml_js_exceptions.internalToOCamlException(raw_e);
-      wip.error.contents = e;
+      wip.error = e;
       return ;
     }
   };
   var updateBasic = function (current, wip) {
     var result = safelyRender(wip, (function (param) {
             return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor.contents,
+                        wip.constructor,
                         Exceptions$ReView.MissingBasicComponentConstructor
                       ], (function (constructor) {
-                          var render = Opaque$ReView.$$return(constructor);
-                          var props = Opaque$ReView.$$return(wip.props);
-                          return Curry._2(render, {
-                                      key: wip.key.contents,
-                                      ref: wip.ref.contents
+                          var props = wip.props;
+                          return Curry._2(constructor, {
+                                      key: wip.key,
+                                      ref: wip.ref
                                     }, props);
                         }));
           }));
@@ -680,14 +798,13 @@ function Engine(Reconciler) {
     render$1(current, wip);
     var result = safelyRender(wip, (function (param) {
             return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor.contents,
+                        wip.constructor,
                         Exceptions$ReView.MissingBasicComponentConstructor
                       ], (function (constructor) {
-                          var render = Opaque$ReView.$$return(constructor);
-                          var props = Opaque$ReView.$$return(wip.props);
-                          return Curry._2(render, props, {
-                                      key: wip.key.contents,
-                                      ref: wip.ref.contents
+                          var props = wip.props;
+                          return Curry._2(constructor, props, {
+                                      key: wip.key,
+                                      ref: wip.ref
                                     });
                         }));
           }));
@@ -698,15 +815,15 @@ function Engine(Reconciler) {
     
   };
   var updateContextConsumer = function (current, wip) {
-    var props = Opaque$ReView.$$return(wip.props);
+    var props = wip.props;
     var result = safelyRender(wip, (function (param) {
             var instance = read(wip, props.context);
             var children = instance.shouldUpdate.contents ? Curry._1(props.build, instance.value.contents) : Let$ReView.$$Option.let_(current, (function (actualCurrent) {
-                      var result = actualCurrent.children.contents;
-                      actualCurrent.children.contents = undefined;
+                      var result = actualCurrent.children;
+                      actualCurrent.children = undefined;
                       return result;
                     }));
-            wip.children.contents = children;
+            wip.children = children;
             return children;
           }));
     if (result !== undefined) {
@@ -715,25 +832,24 @@ function Engine(Reconciler) {
     
   };
   var updateContextProvider = function (current, wip) {
-    var props = Opaque$ReView.$$return(wip.props);
+    var props = wip.props;
     return Let$ReView.OptionOrError.let_(/* tuple */[
                 props.value,
                 Exceptions$ReView.DesyncContextValue
               ], (function (actualValue) {
-                  var match = wip.instance.contents;
+                  var match = wip.instance;
                   if (match !== undefined) {
-                    var instance = Opaque$ReView.$$return(Caml_option.valFromOption(match));
+                    var actualInstance = Caml_option.valFromOption(match);
                     Let$ReView.OptionOrError.let_(/* tuple */[
                           current,
                           Exceptions$ReView.UnboundContextInstance
                         ], (function (actualCurrent) {
                             return Let$ReView.OptionOrError.let_(/* tuple */[
-                                        actualCurrent.instance.contents,
+                                        actualCurrent.instance,
                                         Exceptions$ReView.UnboundContextInstance
                                       ], (function (prevOpaqueInstance) {
-                                          var prevInstance = Opaque$ReView.$$return(prevOpaqueInstance);
-                                          instance.shouldUpdate.contents = Caml_obj.caml_notequal(actualValue, prevInstance.value.contents);
-                                          instance.value.contents = actualValue;
+                                          actualInstance.shouldUpdate.contents = Caml_obj.caml_notequal(actualValue, prevOpaqueInstance.value.contents);
+                                          actualInstance.value.contents = actualValue;
                                           return /* () */0;
                                         }));
                           }));
@@ -744,33 +860,32 @@ function Engine(Reconciler) {
                     var instance_shouldUpdate = {
                       contents: true
                     };
-                    var instance$1 = {
+                    var instance = {
                       value: instance_value,
                       shouldUpdate: instance_shouldUpdate
                     };
-                    wip.instance.contents = Caml_option.some(Opaque$ReView.convert(instance$1));
+                    wip.instance = Caml_option.some(instance);
                   }
                   return call(current, wip, /* array */[props.children]);
                 }));
   };
   var updateErrorBoundary = function (current, wip) {
-    var props = Opaque$ReView.$$return(wip.props);
+    var props = wip.props;
     return call(current, wip, props.children);
   };
   var updateFragment = function (current, wip) {
-    var props = Opaque$ReView.$$return(wip.props);
+    var props = wip.props;
     return call(current, wip, props.children);
   };
   var updateHost = function (current, wip) {
-    var props = Opaque$ReView.$$return(wip.props);
-    if (wip.instance.contents === undefined) {
+    var props = wip.props;
+    if (wip.instance === undefined) {
       Let$ReView.OptionOrError.let_(/* tuple */[
-            wip.constructor.contents,
+            wip.constructor,
             Exceptions$ReView.InvalidHostConstructor
           ], (function (constructor) {
-              var stringConstructor = Opaque$ReView.$$return(constructor);
-              var instance = Curry._2(Reconciler.createInstance, stringConstructor, props.attributes);
-              wip.instance.contents = Caml_option.some(Opaque$ReView.convert(instance));
+              var instance = Curry._2(Reconciler.createInstance, constructor, props.attributes);
+              wip.instance = Caml_option.some(instance);
               return /* () */0;
             }));
     }
@@ -780,20 +895,19 @@ function Engine(Reconciler) {
     render$1(current, wip);
     var result = safelyRender(wip, (function (param) {
             return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor.contents,
+                        wip.constructor,
                         Exceptions$ReView.MissingBasicComponentConstructor
                       ], (function (constructor) {
-                          var render = Opaque$ReView.$$return(constructor);
-                          var props = Opaque$ReView.$$return(wip.props);
-                          return Curry._2(render, {
-                                      key: wip.key.contents,
-                                      ref: wip.ref.contents
+                          var props = wip.props;
+                          return Curry._2(constructor, {
+                                      key: wip.key,
+                                      ref: wip.ref
                                     }, props);
                         }));
           }));
     finishRender(/* () */0);
     if (result !== undefined) {
-      wip.children.contents = result;
+      wip.children = result;
       return call(current, wip, /* array */[result]);
     }
     
@@ -802,7 +916,7 @@ function Engine(Reconciler) {
     if (current !== undefined) {
       var actualCurrent = current;
       var shouldUpdate = {
-        contents: actualCurrent.shouldUpdate.contents
+        contents: actualCurrent.shouldUpdate
       };
       if (!shouldUpdate.contents) {
         var deps = actualCurrent.dependencies;
@@ -816,14 +930,14 @@ function Engine(Reconciler) {
                 }
               }));
       }
-      var currentProps = Opaque$ReView.$$return(actualCurrent.props);
-      var wipProps = Opaque$ReView.$$return(wip.props);
+      var currentProps = actualCurrent.props;
+      var wipProps = wip.props;
       if (shouldUpdate.contents || Caml_obj.caml_notequal(wipProps, currentProps)) {
         return updateMemoInitial(current, wip);
       } else {
-        var children = actualCurrent.children.contents;
-        wip.children.contents = children;
-        actualCurrent.children.contents = undefined;
+        var children = actualCurrent.children;
+        wip.children = children;
+        actualCurrent.children = undefined;
         return call(current, wip, /* array */[children]);
       }
     } else {
@@ -833,19 +947,18 @@ function Engine(Reconciler) {
   var updateMemoBasicInitial = function (current, wip) {
     var result = safelyRender(wip, (function (param) {
             return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor.contents,
+                        wip.constructor,
                         Exceptions$ReView.MissingBasicComponentConstructor
                       ], (function (constructor) {
-                          var render = Opaque$ReView.$$return(constructor);
-                          var props = Opaque$ReView.$$return(wip.props);
-                          return Curry._2(render, {
-                                      key: wip.key.contents,
-                                      ref: wip.ref.contents
+                          var props = wip.props;
+                          return Curry._2(constructor, {
+                                      key: wip.key,
+                                      ref: wip.ref
                                     }, props);
                         }));
           }));
     if (result !== undefined) {
-      wip.children.contents = result;
+      wip.children = result;
       return call(current, wip, /* array */[result]);
     }
     
@@ -853,14 +966,14 @@ function Engine(Reconciler) {
   var updateMemoBasic = function (current, wip) {
     if (current !== undefined) {
       var actualCurrent = current;
-      var currentProps = Opaque$ReView.$$return(actualCurrent.props);
-      var wipProps = Opaque$ReView.$$return(wip.props);
+      var currentProps = actualCurrent.props;
+      var wipProps = wip.props;
       if (Caml_obj.caml_notequal(wipProps, currentProps)) {
         return updateMemoInitial(current, wip);
       } else {
-        var children = actualCurrent.children.contents;
-        wip.children.contents = children;
-        actualCurrent.children.contents = undefined;
+        var children = actualCurrent.children;
+        wip.children = children;
+        actualCurrent.children = undefined;
         return call(current, wip, /* array */[children]);
       }
     } else {
@@ -868,8 +981,11 @@ function Engine(Reconciler) {
     }
   };
   var updateRoot = function (current, wip) {
-    var props = Opaque$ReView.$$return(wip.props);
-    return call(current, wip, props.children);
+    var props = wip.props;
+    if (wip.instance === undefined) {
+      wip.instance = Caml_option.some(props.value);
+    }
+    return call(current, wip, /* array */[props.children]);
   };
   var call$1 = function (current, wip) {
     var match = wip.fiberTag;
@@ -915,8 +1031,8 @@ function Engine(Reconciler) {
   };
   var call$2 = function (wip) {
     if (wip.fiberTag === /* ErrorBoundary */7) {
-      return Let$ReView.OptionUnit.let_(wip.error.contents, (function (error) {
-                    var props = Opaque$ReView.$$return(wip.props);
+      return Let$ReView.OptionUnit.let_(wip.error, (function (error) {
+                    var props = wip.props;
                     return Curry._1(props.onError, error);
                   }));
     } else {
@@ -928,21 +1044,28 @@ function Engine(Reconciler) {
   };
   var withHost = function (wip) {
     return Let$ReView.OptionUnit.let_(getHostParent(wip), (function (parent) {
-                  return Let$ReView.OptionUnit.let_(parent.instance.contents, (function (parentInstance) {
-                                return Let$ReView.OptionUnit.let_(wip.instance.contents, (function (childInstance) {
-                                              return Curry._3(Reconciler.appendChild, Opaque$ReView.$$return(parentInstance), Opaque$ReView.$$return(childInstance), getInstanceIndex(parent));
+                  return Let$ReView.OptionUnit.let_(parent.instance, (function (parentInstance) {
+                                return Let$ReView.OptionUnit.let_(wip.instance, (function (childInstance) {
+                                              Curry._3(Reconciler.appendChild, parentInstance, childInstance, getInstanceIndex(parent));
+                                              var match = wip.ref;
+                                              if (typeof match === "number") {
+                                                return /* () */0;
+                                              } else if (match.tag) {
+                                                return Curry._1(match[0], childInstance);
+                                              } else {
+                                                match[0].contents = Caml_option.some(childInstance);
+                                                return /* () */0;
+                                              }
                                             }));
                               }));
                 }));
   };
   var withHooks = function (wip) {
-    return Opaque$ReView.$$Array.forEach(wip.hooks.contents, (function (hook, param) {
-                  var match = Opaque$ReView.$$return(hook);
-                  if (match.tag === /* LayoutEffect */6) {
-                    return Let$ReView.OptionUnit.let_(match.value.contents, (function (actualValue) {
-                                  var match = Opaque$ReView.$$return(actualValue);
-                                  if (match[2] === /* Placement */2) {
-                                    match[1].contents = Curry._1(match[0], /* () */0);
+    return Opaque$ReView.$$Array.forEach(wip.hooks, (function (hook, param) {
+                  if (hook.tag === /* LayoutEffect */6) {
+                    return Let$ReView.OptionUnit.let_(hook.value.contents, (function (actualValue) {
+                                  if (actualValue[2] === /* Placement */1) {
+                                    actualValue[1].contents = Curry._1(actualValue[0], /* () */0);
                                     return /* () */0;
                                   } else {
                                     return 0;
@@ -979,25 +1102,23 @@ function Engine(Reconciler) {
   };
   var withHost$1 = function (wip) {
     return Let$ReView.OptionUnit.let_(getHostParent(wip), (function (parent) {
-                  return Let$ReView.OptionUnit.let_(wip.instance.contents, (function (childInstance) {
-                                return Let$ReView.OptionUnit.let_(wip.alternate.contents, (function (alternate) {
-                                              return Curry._4(Reconciler.commitUpdate, Opaque$ReView.$$return(childInstance), Opaque$ReView.$$return(alternate.props), Opaque$ReView.$$return(wip.props), getInstanceIndex(parent));
+                  return Let$ReView.OptionUnit.let_(wip.instance, (function (childInstance) {
+                                return Let$ReView.OptionUnit.let_(wip.alternate, (function (alternate) {
+                                              return Curry._4(Reconciler.commitUpdate, childInstance, alternate.props, wip.props, getInstanceIndex(parent));
                                             }));
                               }));
                 }));
   };
   var withHooks$1 = function (wip) {
-    return Opaque$ReView.$$Array.forEach(wip.hooks.contents, (function (hook, param) {
-                  var match = Opaque$ReView.$$return(hook);
-                  if (match.tag === /* LayoutEffect */6) {
-                    return Let$ReView.OptionUnit.let_(match.value.contents, (function (actualValue) {
-                                  var match = Opaque$ReView.$$return(actualValue);
-                                  if (match[2] === /* Update */3) {
-                                    var cleanup = match[1];
+    return Opaque$ReView.$$Array.forEach(wip.hooks, (function (hook, param) {
+                  if (hook.tag === /* LayoutEffect */6) {
+                    return Let$ReView.OptionUnit.let_(hook.value.contents, (function (actualValue) {
+                                  if (actualValue[2] === /* Update */2) {
+                                    var cleanup = actualValue[1];
                                     Let$ReView.OptionUnit.let_(cleanup.contents, (function (actualCleanup) {
                                             return Curry._1(actualCleanup, /* () */0);
                                           }));
-                                    cleanup.contents = Curry._1(match[0], /* () */0);
+                                    cleanup.contents = Curry._1(actualValue[0], /* () */0);
                                     return /* () */0;
                                   } else {
                                     return 0;
@@ -1034,20 +1155,25 @@ function Engine(Reconciler) {
   };
   var withHost$2 = function (wip) {
     return Let$ReView.OptionUnit.let_(getHostParent(wip), (function (parent) {
-                  return Let$ReView.OptionUnit.let_(parent.instance.contents, (function (parentInstance) {
-                                return Let$ReView.OptionUnit.let_(wip.instance.contents, (function (childInstance) {
-                                              return Curry._3(Reconciler.removeChild, Opaque$ReView.$$return(parentInstance), Opaque$ReView.$$return(childInstance), getInstanceIndex(parent));
+                  return Let$ReView.OptionUnit.let_(parent.instance, (function (parentInstance) {
+                                return Let$ReView.OptionUnit.let_(wip.instance, (function (childInstance) {
+                                              Curry._3(Reconciler.removeChild, parentInstance, childInstance, getInstanceIndex(parent));
+                                              var match = wip.ref;
+                                              if (typeof match === "number" || match.tag) {
+                                                return /* () */0;
+                                              } else {
+                                                match[0].contents = undefined;
+                                                return /* () */0;
+                                              }
                                             }));
                               }));
                 }));
   };
   var withHooks$2 = function (wip) {
-    return Opaque$ReView.$$Array.forEach(wip.hooks.contents, (function (hook, param) {
-                  var match = Opaque$ReView.$$return(hook);
-                  if (match.tag === /* LayoutEffect */6) {
-                    return Let$ReView.OptionUnit.let_(match.value.contents, (function (actualValue) {
-                                  var match = Opaque$ReView.$$return(actualValue);
-                                  return Let$ReView.OptionUnit.let_(match[1].contents, (function (actualCleanup) {
+    return Opaque$ReView.$$Array.forEach(wip.hooks, (function (hook, param) {
+                  if (hook.tag === /* LayoutEffect */6) {
+                    return Let$ReView.OptionUnit.let_(hook.value.contents, (function (actualValue) {
+                                  return Let$ReView.OptionUnit.let_(actualValue[1].contents, (function (actualCleanup) {
                                                 return Curry._1(actualCleanup, /* () */0);
                                               }));
                                 }));
@@ -1078,12 +1204,12 @@ function Engine(Reconciler) {
   var commitDeleteSibling = function (wip) {
     return Let$ReView.OptionUnit.let_(wip, (function (actualFiber) {
                   commitDelete(actualFiber);
-                  return commitDeleteSibling(actualFiber.sibling.contents);
+                  return commitDeleteSibling(actualFiber.sibling);
                 }));
   };
   var call$5 = function (wip) {
     commitDelete(wip);
-    return commitDeleteSibling(wip.child.contents);
+    return commitDeleteSibling(wip.child);
   };
   var Delete = {
     withHost: withHost$2,
@@ -1093,13 +1219,11 @@ function Engine(Reconciler) {
     call: call$5
   };
   var withHooks$3 = function (wip) {
-    return Opaque$ReView.$$Array.forEach(wip.hooks.contents, (function (hook, param) {
-                  var match = Opaque$ReView.$$return(hook);
-                  if (match.tag === /* Effect */4) {
-                    return Let$ReView.OptionUnit.let_(match.value.contents, (function (actualValue) {
-                                  var match = Opaque$ReView.$$return(actualValue);
-                                  if (match[2] === /* Placement */2) {
-                                    match[1].contents = Curry._1(match[0], /* () */0);
+    return Opaque$ReView.$$Array.forEach(wip.hooks, (function (hook, param) {
+                  if (hook.tag === /* Effect */4) {
+                    return Let$ReView.OptionUnit.let_(hook.value.contents, (function (actualValue) {
+                                  if (actualValue[2] === /* Placement */1) {
+                                    actualValue[1].contents = Curry._1(actualValue[0], /* () */0);
                                     return /* () */0;
                                   } else {
                                     return 0;
@@ -1123,17 +1247,15 @@ function Engine(Reconciler) {
     call: call$6
   };
   var withHooks$4 = function (wip) {
-    return Opaque$ReView.$$Array.forEach(wip.hooks.contents, (function (hook, param) {
-                  var match = Opaque$ReView.$$return(hook);
-                  if (match.tag === /* Effect */4) {
-                    return Let$ReView.OptionUnit.let_(match.value.contents, (function (actualValue) {
-                                  var match = Opaque$ReView.$$return(actualValue);
-                                  if (match[2] === /* Update */3) {
-                                    var cleanup = match[1];
+    return Opaque$ReView.$$Array.forEach(wip.hooks, (function (hook, param) {
+                  if (hook.tag === /* Effect */4) {
+                    return Let$ReView.OptionUnit.let_(hook.value.contents, (function (actualValue) {
+                                  if (actualValue[2] === /* Update */2) {
+                                    var cleanup = actualValue[1];
                                     Let$ReView.OptionUnit.let_(cleanup.contents, (function (actualCleanup) {
                                             return Curry._1(actualCleanup, /* () */0);
                                           }));
-                                    cleanup.contents = Curry._1(match[0], /* () */0);
+                                    cleanup.contents = Curry._1(actualValue[0], /* () */0);
                                     return /* () */0;
                                   } else {
                                     return 0;
@@ -1157,12 +1279,10 @@ function Engine(Reconciler) {
     call: call$7
   };
   var withHooks$5 = function (wip) {
-    return Opaque$ReView.$$Array.forEach(wip.hooks.contents, (function (hook, param) {
-                  var match = Opaque$ReView.$$return(hook);
-                  if (match.tag === /* Effect */4) {
-                    return Let$ReView.OptionUnit.let_(match.value.contents, (function (actualValue) {
-                                  var match = Opaque$ReView.$$return(actualValue);
-                                  return Let$ReView.OptionUnit.let_(match[1].contents, (function (actualCleanup) {
+    return Opaque$ReView.$$Array.forEach(wip.hooks, (function (hook, param) {
+                  if (hook.tag === /* Effect */4) {
+                    return Let$ReView.OptionUnit.let_(hook.value.contents, (function (actualValue) {
+                                  return Let$ReView.OptionUnit.let_(actualValue[1].contents, (function (actualCleanup) {
                                                 return Curry._1(actualCleanup, /* () */0);
                                               }));
                                 }));
@@ -1182,12 +1302,12 @@ function Engine(Reconciler) {
   var commitDeleteSibling$1 = function (wip) {
     return Let$ReView.OptionUnit.let_(wip, (function (actualFiber) {
                   commitDelete$1(actualFiber);
-                  return commitDeleteSibling$1(actualFiber.sibling.contents);
+                  return commitDeleteSibling$1(actualFiber.sibling);
                 }));
   };
   var call$8 = function (wip) {
     commitDelete$1(wip);
-    return commitDeleteSibling$1(wip.child.contents);
+    return commitDeleteSibling$1(wip.child);
   };
   var Delete$1 = {
     withHooks: withHooks$5,
@@ -1209,40 +1329,39 @@ function Engine(Reconciler) {
     }
     catch (raw_e){
       var e = Caml_js_exceptions.internalToOCamlException(raw_e);
-      wip.error.contents = e;
+      wip.error = e;
       return /* () */0;
     }
   };
   var call$9 = function (wip) {
     return Let$ReView.OptionUnit.let_(wip, (function (fiber) {
                   var commitOnChild = true;
-                  var match = fiber.workTag.contents;
+                  var match = fiber.workTag;
                   switch (match) {
                     case /* None */0 :
-                    case /* Performed */1 :
                         break;
-                    case /* Placement */2 :
+                    case /* Placement */1 :
                         safelyCommit(fiber, call$6, undefined);
                         break;
-                    case /* Update */3 :
+                    case /* Update */2 :
                         safelyCommit(fiber, call$7, undefined);
                         break;
-                    case /* Delete */4 :
-                        safelyCommit(fiber, call$8, fiber.alternate.contents);
+                    case /* Delete */3 :
+                        safelyCommit(fiber, call$8, fiber.alternate);
                         commitOnChild = false;
                         break;
-                    case /* Replace */5 :
-                        safelyCommit(fiber, call$8, fiber.alternate.contents);
+                    case /* Replace */4 :
+                        safelyCommit(fiber, call$8, fiber.alternate);
                         safelyCommit(fiber, call$6, undefined);
                         break;
                     
                   }
-                  if (fiber.error.contents !== undefined) {
+                  if (fiber.error !== undefined) {
                     call$2(fiber);
                   } else if (commitOnChild) {
-                    call$9(fiber.child.contents);
+                    call$9(fiber.child);
                   }
-                  return call$9(fiber.sibling.contents);
+                  return call$9(fiber.sibling);
                 }));
   };
   var Work = {
@@ -1269,40 +1388,39 @@ function Engine(Reconciler) {
     }
     catch (raw_e){
       var e = Caml_js_exceptions.internalToOCamlException(raw_e);
-      wip.error.contents = e;
+      wip.error = e;
       return /* () */0;
     }
   };
   var call$10 = function (wip) {
     return Let$ReView.OptionUnit.let_(wip, (function (fiber) {
                   var commitOnChild = true;
-                  var match = fiber.workTag.contents;
+                  var match = fiber.workTag;
                   switch (match) {
                     case /* None */0 :
-                    case /* Performed */1 :
                         break;
-                    case /* Placement */2 :
+                    case /* Placement */1 :
                         safelyCommit$1(fiber, call$3, undefined);
                         break;
-                    case /* Update */3 :
+                    case /* Update */2 :
                         safelyCommit$1(fiber, call$4, undefined);
                         break;
-                    case /* Delete */4 :
-                        safelyCommit$1(fiber, call$5, fiber.alternate.contents);
+                    case /* Delete */3 :
+                        safelyCommit$1(fiber, call$5, fiber.alternate);
                         commitOnChild = false;
                         break;
-                    case /* Replace */5 :
-                        safelyCommit$1(fiber, call$5, fiber.alternate.contents);
+                    case /* Replace */4 :
+                        safelyCommit$1(fiber, call$5, fiber.alternate);
                         safelyCommit$1(fiber, call$3, undefined);
                         break;
                     
                   }
-                  if (fiber.error.contents !== undefined) {
+                  if (fiber.error !== undefined) {
                     call$2(fiber);
                   } else if (commitOnChild) {
-                    call$10(fiber.child.contents);
+                    call$10(fiber.child);
                   }
-                  return call$10(fiber.sibling.contents);
+                  return call$10(fiber.sibling);
                 }));
   };
   var Work$1 = {
@@ -1311,15 +1429,15 @@ function Engine(Reconciler) {
   };
   var call$11 = function (param) {
     Let$ReView.OptionUnit.let_(wipRoot.contents, (function (wip) {
-            return call$10(wip.child.contents);
+            return call$10(wip.child);
           }));
     Let$ReView.OptionUnit.let_(currentRoot.contents, (function (current) {
-            return detach(current.alternate.contents);
+            return detach(current.alternate);
           }));
     currentRoot.contents = wipRoot.contents;
     wipRoot.contents = undefined;
     Let$ReView.OptionUnit.let_(currentRoot.contents, (function (current) {
-            return call$10(current.child.contents);
+            return call$10(current.child);
           }));
     return /* () */0;
   };
@@ -1337,9 +1455,9 @@ function Engine(Reconciler) {
   };
   var completeUnitOfWork = function (wip) {
     return Let$ReView.$$Option.let_(wip, (function (actualWIP) {
-                  var sibling = actualWIP.sibling.contents;
+                  var sibling = actualWIP.sibling;
                   if (sibling === undefined) {
-                    return completeUnitOfWork(actualWIP.parent.contents);
+                    return completeUnitOfWork(actualWIP.parent);
                   } else {
                     return sibling;
                   }
@@ -1362,7 +1480,7 @@ function Engine(Reconciler) {
         return 0;
       } else {
         return Let$ReView.OptionUnit.let_(nextUnitOfWork.contents, (function (nextUnitOfWork$1) {
-                      nextUnitOfWork.contents = performUnitOfWork(nextUnitOfWork$1.alternate.contents, nextUnitOfWork$1);
+                      nextUnitOfWork.contents = performUnitOfWork(nextUnitOfWork$1.alternate, nextUnitOfWork$1);
                       shouldYield.contents = Curry._1(deadline, /* () */0) < 1.0;
                       return loop(deadline);
                     }));
@@ -1382,18 +1500,33 @@ function Engine(Reconciler) {
           Fragment: Fragment,
           Root: Root,
           Host: Host,
+          Basic: Basic,
+          MemoBasic: MemoBasic,
+          Memo: Memo,
+          Component: Component,
           Core: Core,
           Utils: Utils,
           ReconcileChildren: ReconcileChildren,
-          HooksContext: HooksContext,
-          HooksFunction: HooksFunction,
+          Hooks: Hooks,
           BeginWork: BeginWork,
           Commit: Commit,
           completeUnitOfWork: completeUnitOfWork,
           performUnitOfWork: performUnitOfWork,
-          workLoop: workLoop
+          workLoop: workLoop,
+          useCallback: use,
+          useConstant: use$1,
+          useContext: use$2,
+          useEffect: use$3,
+          useForceUpdate: use$4,
+          useIdentifier: use$11,
+          useLayoutEffect: use$5,
+          useMemo: use$6,
+          useMutable: use$10,
+          useReducer: use$7,
+          useReference: use$9,
+          useState: use$8
         };
 }
 
-exports.Engine = Engine;
+exports.Make = Make;
 /* Opaque-ReView Not a pure module */
