@@ -11,4 +11,8 @@ S /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-webapi/lib/ocaml
 B /Users/Alexis/Documents/GitHub/re-view/node_modules/bs-webapi/lib/ocaml
 S src
 B lib/bs/src
+S src/DOM
+B lib/bs/src/DOM
+S src/DOM/Elements
+B lib/bs/src/DOM/Elements
 ####BSB GENERATED: NO EDIT}
