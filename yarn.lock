@@ -7,10 +7,10 @@ bs-let@^0.1.16:
   resolved "https://registry.yarnpkg.com/bs-let/-/bs-let-0.1.16.tgz#63cd449ed02c75f87eceb248d45963937afdd4ed"
   integrity sha512-pdbSNe/QRpqgqS72dYDlkZ7kqMHc5aJkLgipLS8BFMRx+hQqkOo0JOpxWZQeDj1T677e302xgmV+Mid5gvmnBg==
 
-bs-platform@^7.0.1:
-  version "7.0.1"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-7.0.1.tgz#1d7b0ef6088b998dceee5db74a7cd8f01c20a3bd"
-  integrity sha512-UjStdtHhbtC/l6vKJ1XRDqrPk7rFf5PLYHtRX3akDXEYVnTbN36z0g4DEr5mU8S0N945e33HYts9x+i7hKKpZQ==
+bs-platform@^7.3.2:
+  version "7.3.2"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-7.3.2.tgz#301f5c9b4e8cf5713cb60ca22e145e56e793affe"
+  integrity sha512-seJL5g4anK9la4erv+B2o2sMHQCxDF6OCRl9en3hbaUos/S3JsusQ0sPp4ORsbx5eXfHLYBwPljwKXlgpXtsgQ==
 
 bs-webapi@^0.15.6:
   version "0.15.6"

@@ -39,6 +39,21 @@ module Tags = {
       | ContextProvider
       | ContextConsumer
     ;
+
+    let map = (tag: t) => {
+      switch (tag) {
+        | Component => "Component"
+        | Host => "Host"
+        | Root => "Root"
+        | Fragment => "Fragment"
+        | Basic => "Basic"
+        | Memo => "Memo"
+        | MemoBasic => "MemoBasic"
+        | ErrorBoundary => "ErrorBoundary"
+        | ContextProvider => "ContextProvider"
+        | ContextConsumer => "ContextConsumer"
+      }
+    };
   };
 
   module Work = {
@@ -49,6 +64,16 @@ module Tags = {
       | Delete
       | Replace
     ;
+
+    let map = (tag: t) => {
+      switch (tag) {
+        | None => "None"
+        | Placement => "Placement"
+        | Update => "Update"
+        | Delete => "Delete"
+        | Replace => "Replace"
+      }
+    };
   };
 
   module Hook = {

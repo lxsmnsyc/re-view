@@ -56,7 +56,6 @@ module Make = (Reconciler: ReconcilerType) => {
       mutable identifier: int,
       mutable key: option(string),
       mutable index: int,
-      mutable indeces: int,
       map: Opaque.Map.t,
       /**
        * Reference
@@ -104,16 +103,15 @@ module Make = (Reconciler: ReconcilerType) => {
       dependencies: Opaque.Set.make(),
       shouldUpdate: false,
       children: None,
-      indeces: 0,
       identifier: 0,
     };
 
     /**
      * Detaches fiber from any node it is connected to.
      */
-    let rec detach = (fiber: option(t)): unit => {
+    let rec detach = (detachingFiber: option(t)): unit => {
       ignore({
-        let%Option actualFiber = fiber;
+        let%Option actualFiber = detachingFiber;
         let child = actualFiber.child;
         let sibling = actualFiber.sibling;
         let alternate = actualFiber.alternate;
@@ -121,6 +119,11 @@ module Make = (Reconciler: ReconcilerType) => {
         actualFiber.child = None;
         actualFiber.sibling = None;
         actualFiber.alternate = None;
+        actualFiber.constructor = None;
+        actualFiber.workTag = None;
+        actualFiber.parent = None;
+        actualFiber.children = None;
+        actualFiber.instance = None;
 
         detach(alternate);
         detach(child);
@@ -144,8 +147,8 @@ module Make = (Reconciler: ReconcilerType) => {
 
     module Instance = {
       type t('a) = {
-        value: ref('a),
-        shouldUpdate: ref(bool),
+        mutable value: 'a,
+        mutable shouldUpdate: bool,
       };
     };
 
@@ -332,38 +335,55 @@ module Make = (Reconciler: ReconcilerType) => {
   };
 
   module Core = {
-    let currentRoot: ref(option(Fiber.t)) = ref(None);
-    let wipRoot: ref(option(Fiber.t)) = ref(None);
-    let nextUnitOfWork: ref(option(Fiber.t)) = ref(None);
-
-    let update = () => {
-      let%OptionUnit current = currentRoot^;
-      let fiber = Fiber.make(Types.Tags.Fiber.Root, current.props);
-
-      fiber.instance = current.instance;
-      fiber.alternate = current.alternate;
-
-      wipRoot := Some(fiber);
-      nextUnitOfWork := Some(fiber);
+    type t = {
+      mutable current: option(Fiber.t),
+      mutable wip: option(Fiber.t),
+      mutable next: option(Fiber.t),
     };
 
-    let render = (element: Types.Element.t, container: Reconciler.t) => {
+    let root: t = {
+      current: None,
+      wip: None,
+      next: None,
+    };
+
+    let update = () => {
+      switch (root.current) {
+        | Some(current) => {
+          let updateFiber = Fiber.make(Types.Tags.Fiber.Root, current.props);
+
+          updateFiber.instance = current.instance;
+          updateFiber.alternate = root.current;
+
+          root.wip = Some(updateFiber);
+          root.next = Some(updateFiber);
+        };
+        | None => {
+          raise(Exceptions.MissingCurrentRoot);
+        };
+      }
+    };
+
+    let render = (element: option(Types.Element.t), container: Reconciler.t) => {
       let props: Root.props = {
         value: container,
-        children: Some(element),
+        children: element,
       };
 
-      let fiber = Fiber.make(Types.Tags.Fiber.Root, props);
+      let renderFiber = Fiber.make(Types.Tags.Fiber.Root, props);
 
-      fiber.instance = Some(Opaque.convert(container));
-      fiber.alternate = currentRoot^;
+      renderFiber.instance = Some(Opaque.convert(container));
+      renderFiber.alternate = root.current;
 
-      wipRoot := Some(fiber);
-      nextUnitOfWork := Some(fiber);
+      root.wip = Some(renderFiber);
+      root.next = Some(renderFiber);
     };
   };
 
   module Utils = {
+    /**
+     * Get the nearest parent node that is a root or a host instance
+     */
     let rec getHostParent = (wip: Fiber.t): option(Fiber.t) => {
       let%Option parent = wip.parent;
 
@@ -374,10 +394,29 @@ module Make = (Reconciler: ReconcilerType) => {
       }
     };
 
-    let getInstanceIndex = (wip: Fiber.t): int => {
-      let index = wip.indeces;
-      wip.indeces = index + 1;
-      index;
+    /**
+     * Measure the instance's child index in relation to it's parent.
+     */
+    let getInstanceIndex = (parent: Fiber.t, wip: Fiber.t): int => {
+      let counter = ref(0);
+
+
+      let rec measure = (measuringFiber: option(Fiber.t)): unit => {
+        let%OptionUnit actualMeasuringFiber = measuringFiber;
+        if (actualMeasuringFiber !== wip) {
+          if (actualMeasuringFiber.fiberTag == Types.Tags.Fiber.Host) {
+            counter := counter^ + 1;
+          } else {
+            measure(actualMeasuringFiber.child);
+          }
+          measure(actualMeasuringFiber.sibling);
+        }
+      };
+
+      measure(parent.child);
+
+
+      counter^;
     };
   };
 
@@ -416,90 +455,92 @@ module Make = (Reconciler: ReconcilerType) => {
     };
 
     let replaceFiber = (parent: Fiber.t, oldFiber: Fiber.t, element: Types.Element.t, index: int, key: option(string)): Fiber.t => {
-      let fiber = Fiber.make(element.fiberTag, element.props);
-      fiber.constructor = element.constructor;
-      fiber.workTag = Types.Tags.Work.Replace;
-      fiber.identifier = Fiber.createIndex();
+      let replacementFiber = Fiber.make(element.fiberTag, element.props);
+      replacementFiber.constructor = element.constructor;
+      replacementFiber.workTag = Types.Tags.Work.Replace;
+      replacementFiber.identifier = Fiber.createIndex();
 
-      attachFiberAlternate(oldFiber, fiber);
-      mapFiberToParent(parent, fiber, index, key);
+      attachFiberAlternate(oldFiber, replacementFiber);
+      mapFiberToParent(parent, replacementFiber, index, key);
       
-      fiber;
+      replacementFiber;
     };
 
     let deleteFiber = (parent: Fiber.t, oldFiber: Fiber.t, index: int, key: option(string)): Fiber.t => {
-      let fiber = Fiber.make(oldFiber.fiberTag, oldFiber.props);
-      fiber.constructor = oldFiber.constructor;
-      fiber.workTag = Types.Tags.Work.Delete;
-      fiber.instance = oldFiber.instance;
+      let deletionFiber = Fiber.make(oldFiber.fiberTag, oldFiber.props);
+      deletionFiber.constructor = oldFiber.constructor;
+      deletionFiber.workTag = Types.Tags.Work.Delete;
+      deletionFiber.instance = oldFiber.instance;
 
-      attachFiberAlternate(oldFiber, fiber);
-      mapFiberToParent(parent, fiber, index, key);
+      attachFiberAlternate(oldFiber, deletionFiber);
+      mapFiberToParent(parent, deletionFiber, index, key);
       
-      fiber;
+      deletionFiber;
     };
 
     /**
      * Updates fiber from the given element.
      */
     let updateFiberFromElement = (parent: Fiber.t, oldFiber: Fiber.t, element: Types.Element.t, index: int, key: option(string)): Fiber.t => {
-      let fiber = Fiber.make(oldFiber.fiberTag, element.props);
+      let patchFiber = Fiber.make(oldFiber.fiberTag, element.props);
 
       /**
        * Set other fields
        */
-      fiber.workTag = Types.Tags.Work.Update;
-      fiber.constructor = oldFiber.constructor;
-      fiber.instance = oldFiber.instance;
-      fiber.identifier = oldFiber.identifier;
+      patchFiber.workTag = Types.Tags.Work.Update;
+      patchFiber.constructor = oldFiber.constructor;
+      patchFiber.instance = oldFiber.instance;
+      patchFiber.identifier = oldFiber.identifier;
 
-      attachFiberAlternate(oldFiber, fiber);
-      mapFiberToParent(parent, fiber, index, key);
+      attachFiberAlternate(oldFiber, patchFiber);
+      mapFiberToParent(parent, patchFiber, index, key);
 
-      fiber;
+      patchFiber;
     };
 
     /**
      * Create fiber from element
      */
     let createFiberFromElement = (parent: Fiber.t, element: Types.Element.t, index: int, key: option(string)): Fiber.t => {
-      let fiber = Fiber.make(element.fiberTag, element.props);
+      let creationFiber = Fiber.make(element.fiberTag, element.props);
 
       /**
        * Set other fields
        */
-      fiber.workTag = Types.Tags.Work.Placement;
-      fiber.constructor = element.constructor;
-      fiber.identifier = Fiber.createIndex();
+      creationFiber.workTag = Types.Tags.Work.Placement;
+      creationFiber.constructor = element.constructor;
+      creationFiber.identifier = Fiber.createIndex();
 
-      mapFiberToParent(parent, fiber, index, key);
+      mapFiberToParent(parent, creationFiber, index, key);
 
-      fiber;
+      creationFiber;
     };
 
     /**
      * Produces a new fiber that represents the new unit of work for the new tree.
      */
     let updateFiber = (parent: Fiber.t, oldFiber: option(Fiber.t), element: option(Types.Element.t), index: int, key: option(string)): option(Fiber.t) => {
-      switch (oldFiber, element) {
-        | (Some(actualOldFiber), Some(actualElement)) => {
-          Some(if (actualOldFiber.workTag == Types.Tags.Work.Delete) {
-            createFiberFromElement(parent, actualElement, index, key);
-          } else if (actualElement.fiberTag != actualOldFiber.fiberTag) {
-            replaceFiber(parent, actualOldFiber, actualElement, index, key);
-          } else if (actualElement.constructor != actualOldFiber.constructor) {
-            replaceFiber(parent, actualOldFiber, actualElement, index, key);
-          } else {
-            updateFiberFromElement(parent, actualOldFiber, actualElement, index, key);
-          })
-        }
-        | (Some(actualOldFiber), None) => {
-          Some(deleteFiber(parent, actualOldFiber, index, key));
-        }
-        | (None, Some(actualElement)) => {
+      if (oldFiber != None) {
+        let%Option actualOldFiber = oldFiber;
+
+        if (actualOldFiber.workTag == Types.Tags.Work.Delete && element != None) {
+          let%Option actualElement = element;
           Some(createFiberFromElement(parent, actualElement, index, key));
+        } else if (element == None) {
+          Some(deleteFiber(parent, actualOldFiber, index, key));
+        } else {
+          let%Option actualElement = element;
+          if (actualElement.fiberTag != actualOldFiber.fiberTag) {
+            Some(deleteFiber(parent, actualOldFiber, index, key));
+          } else if (actualElement.constructor != actualOldFiber.constructor) {
+            Some(deleteFiber(parent, actualOldFiber, index, key));
+          } else {
+            Some(updateFiberFromElement(parent, actualOldFiber, actualElement, index, key));
+          }
         }
-        | (None, None) => None;
+      } else {
+        let%Option actualElement = element;
+        Some(createFiberFromElement(parent, actualElement, index, key));
       }
     };
 
@@ -531,23 +572,23 @@ module Make = (Reconciler: ReconcilerType) => {
        * Connects the newest fiber to the wip tree
        */
       let linkFiber = (newFiber: option(Fiber.t), hasElement: bool): unit => {
-        let%OptionUnit fiber = newFiber;
+        let%OptionUnit linkingFiber = newFiber;
         if (wip.child == None) {
           /**
            * Set the newest fiber as the first child of the wip fiber
            * if the wip fiber doesn't have any child.
            */
-          wip.child = Some(fiber);
+          wip.child = Some(linkingFiber);
         } else if (hasElement) {
           /**
            * Otherwise, set the new fiber as a sibling from the previously
            * created fiber.
            */
-            let%OptionUnit prev = previousFiber^;
-            prev.sibling = Some(fiber);
+          let%OptionUnit prev = previousFiber^;
+          prev.sibling = Some(linkingFiber);
         }
 
-        previousFiber := Some(fiber);
+        previousFiber := Some(linkingFiber);
       };
 
       let marked = Opaque.Set.make();
@@ -582,11 +623,11 @@ module Make = (Reconciler: ReconcilerType) => {
       ignore({
         let%OptionUnit actualCurrent = current;
         let rec iterateFibers = (oldFiber: option(Fiber.t)) => {
-          let%OptionUnit fiber = oldFiber;
-          if (!Opaque.Set.has(marked, fiber)) {
-            linkFiber(Some(deleteFiber(wip, fiber, fiber.index, fiber.key)), false);
+          let%OptionUnit iteratedFiber = oldFiber;
+          if (!Opaque.Set.has(marked, iteratedFiber)) {
+            linkFiber(Some(deleteFiber(wip, iteratedFiber, iteratedFiber.index, iteratedFiber.key)), false);
           }
-          iterateFibers(fiber.sibling);
+          iterateFibers(iteratedFiber.sibling);
         };
 
         iterateFibers(actualCurrent.child);
@@ -603,9 +644,8 @@ module Make = (Reconciler: ReconcilerType) => {
     module Slot = {
       type t = {
         tag: Types.Tags.Hook.t,
-        value: ref(option(Opaque.t)),
+        mutable value: option(Opaque.t),
       };
-
     };
 
     /**
@@ -636,21 +676,21 @@ module Make = (Reconciler: ReconcilerType) => {
       };
 
       let getCurrentFiber = (): Fiber.t => {
-        let%OptionOrError fiber = (hookFiber^, Exceptions.OutOfContextHookCall);
-        fiber;
+        let%OptionOrError currentFiber = (hookFiber^, Exceptions.OutOfContextHookCall);
+        currentFiber;
       };
 
       let make = (tag: Types.Tags.Hook.t): Slot.t => {
         /**
          * Get currently rendering fiber
          */
-        let fiber = getCurrentFiber();
-
+        let currentFiber = getCurrentFiber();
         /**
          * Allocate a hook slot
          */
-        let slot: option(Slot.t) = Opaque.Array.get(fiber.hooks, hookCursor^);
-        hookCursor := hookCursor^ + 1;
+        let current = hookCursor^;
+        let slot: option(Slot.t) = Opaque.Array.get(currentFiber.hooks, current);
+        hookCursor := current + 1;
 
         switch (slot) {
           /**
@@ -671,13 +711,12 @@ module Make = (Reconciler: ReconcilerType) => {
              */
             let newSlot: Slot.t = {
               tag: tag,
-              value: ref(None),
+              value: None,
             };
-
             /**
              * Set the new slot on the allocated slot
              */
-            Opaque.Array.set(fiber.hooks, hookCursor^, newSlot);
+            Opaque.Array.set(currentFiber.hooks, current, newSlot);
 
             newSlot;
           };
@@ -704,19 +743,19 @@ module Make = (Reconciler: ReconcilerType) => {
           let state = RenderContext.make(Types.Tags.Hook.Callback);
           let dep = RenderContext.make(Types.Tags.Hook.Dependency);
 
-          switch (state.value^) {
+          switch (state.value) {
             | Some(actualCallback) => {
-              if (dep.value^ != Some(Opaque.convert(dependency))) {
-                state.value := Some(Opaque.convert(callback));
-                dep.value := Some(Opaque.convert(dependency));
+              if (dep.value != Some(Opaque.convert(dependency))) {
+                state.value = Some(Opaque.convert(callback));
+                dep.value = Some(Opaque.convert(dependency));
                 callback;
               } else {
                 Opaque.return(actualCallback);
               }
             };
             | None => {
-              state.value := Some(Opaque.convert(callback));
-              dep.value := Some(Opaque.convert(dependency));
+              state.value = Some(Opaque.convert(callback));
+              dep.value = Some(Opaque.convert(dependency));
               callback;
             }
           }
@@ -730,11 +769,11 @@ module Make = (Reconciler: ReconcilerType) => {
         let use = (supplier: unit => 'value): 'value => {
           let state = RenderContext.make(Types.Tags.Hook.Constant);
 
-          switch (state.value^) {
+          switch (state.value) {
             | Some(value) => Opaque.return(value);
             | None => {
               let value = supplier();
-              state.value := Some(Opaque.convert(value));
+              state.value = Some(Opaque.convert(value));
               value;
             };
           }
@@ -752,7 +791,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
           Opaque.Set.add(wip.dependencies, context);
 
-          instance.value^;
+          instance.value;
         };
       };
 
@@ -776,21 +815,21 @@ module Make = (Reconciler: ReconcilerType) => {
           let state = RenderContext.make(Types.Tags.Hook.Effect);
           let dep = RenderContext.make(Types.Tags.Hook.Dependency);
 
-          switch (dep.value^) {
+          switch (dep.value) {
             | Some(actualDep) => {
               /**
                * Compare dependency
                */
-              if (actualDep != dependency) {
+              if (Opaque.return(actualDep) != dependency) {
                 /**
                  * Get previous slot value
                  */
-                let%OptionUnit opaquePrev = state.value^;
+                let%OptionUnit opaquePrev = state.value;
                 let (effect, cleanup, _) = Opaque.return(opaquePrev);
                 /**
                  * Update slot value
                  */
-                state.value := Some(Opaque.convert((
+                state.value = Some(Opaque.convert((
                   effect,
                   cleanup,
                   Types.Tags.Work.Update,
@@ -798,16 +837,16 @@ module Make = (Reconciler: ReconcilerType) => {
                 /**
                  * Update dependency value
                  */
-                dep.value := Some(Opaque.convert(dependency));
+                dep.value = Some(Opaque.convert(dependency));
               }
             };
             | None => {
-              state.value := Some(Opaque.convert((
+              state.value = Some(Opaque.convert((
                 effect,
                 ref(None),
                 Types.Tags.Work.Placement,
               )));
-              dep.value := Some(Opaque.convert(dependency));
+              dep.value = Some(Opaque.convert(dependency));
             };
           }
         };
@@ -820,14 +859,14 @@ module Make = (Reconciler: ReconcilerType) => {
         let use = () => {
           let dispatch = RenderContext.make(Types.Tags.Hook.ForceUpdate);
 
-          switch (dispatch.value^) {
+          switch (dispatch.value) {
             | Some(actualValue) => Opaque.return(actualValue);
             | None => {
               let callback = () => {
                 Core.update();
               };
 
-              dispatch.value := Some(Opaque.convert(callback));
+              dispatch.value = Some(Opaque.convert(callback));
 
               callback;
             };
@@ -857,21 +896,21 @@ module Make = (Reconciler: ReconcilerType) => {
           let state = RenderContext.make(Types.Tags.Hook.LayoutEffect);
           let dep = RenderContext.make(Types.Tags.Hook.Dependency);
 
-          switch (dep.value^) {
+          switch (dep.value) {
             | Some(actualDep) => {
               /**
                * Compare dependency
                */
-              if (actualDep != dependency) {
+              if (Opaque.return(actualDep) != dependency) {
                 /**
                  * Get previous slot value
                  */
-                let%OptionUnit opaquePrev = state.value^;
+                let%OptionUnit opaquePrev = state.value;
                 let (effect, cleanup, _) = Opaque.return(opaquePrev);
                 /**
                  * Update slot value
                  */
-                state.value := Some(Opaque.convert((
+                state.value = Some(Opaque.convert((
                   effect,
                   cleanup,
                   Types.Tags.Work.Update,
@@ -879,16 +918,16 @@ module Make = (Reconciler: ReconcilerType) => {
                 /**
                  * Update dependency value
                  */
-                dep.value := Some(Opaque.convert(dependency));
+                dep.value = Some(Opaque.convert(dependency));
               }
             };
             | None => {
-              state.value := Some(Opaque.convert((
+              state.value = Some(Opaque.convert((
                 effect,
                 ref(None),
                 Types.Tags.Work.Placement,
               )));
-              dep.value := Some(Opaque.convert(dependency));
+              dep.value = Some(Opaque.convert(dependency));
             };
           }
         };
@@ -903,12 +942,12 @@ module Make = (Reconciler: ReconcilerType) => {
           let state = RenderContext.make(Types.Tags.Hook.Memo);
           let dep = RenderContext.make(Types.Tags.Hook.Dependency);
 
-          switch (state.value^) {
+          switch (state.value) {
             | Some(actualState) => {
-              if (dep.value^ != Some(Opaque.convert(dependency))) {
+              if (dep.value != Some(Opaque.convert(dependency))) {
                 let value = supplier();
-                state.value := Some(Opaque.convert(value));
-                dep.value := Some(Opaque.convert(dependency));
+                state.value = Some(Opaque.convert(value));
+                dep.value = Some(Opaque.convert(dependency));
                 value;
               } else {
                 Opaque.return(actualState);
@@ -916,8 +955,8 @@ module Make = (Reconciler: ReconcilerType) => {
             };
             | None => {
               let value = supplier();
-              state.value := Some(Opaque.convert(value));
-              dep.value := Some(Opaque.convert(dependency));
+              state.value = Some(Opaque.convert(value));
+              dep.value = Some(Opaque.convert(dependency));
               value;
             };
           }
@@ -933,26 +972,26 @@ module Make = (Reconciler: ReconcilerType) => {
           let state = RenderContext.make(Types.Tags.Hook.ReducerState);
           let dispatch = RenderContext.make(Types.Tags.Hook.ReducerDispatch);
 
-          switch (state.value^, dispatch.value^) {
+          switch (state.value, dispatch.value) {
             | (Some(actualState), Some(actualDispatch)) => {
               (Opaque.return(actualState), Opaque.return(actualDispatch));
             };
             | (_, _) => {
               let initialState = initial();
               let callback = (action: 'action) => {
-                let%OptionUnit opaqueValue = state.value^;
+                let%OptionUnit opaqueValue = state.value;
                 let actualValue = Opaque.return(opaqueValue);
                 let newState = reducer(actualValue, action);
 
                 if (newState != actualValue) {
-                  state.value := Some(Opaque.convert(newState));
+                  state.value = Some(Opaque.convert(newState));
                   wip.shouldUpdate = true;
                   Core.update();
                 }
               };
 
-              state.value := Some(Opaque.convert(initialState));
-              dispatch.value := Some(Opaque.convert(callback));
+              state.value = Some(Opaque.convert(initialState));
+              dispatch.value = Some(Opaque.convert(callback));
 
               (initialState, callback);
             };
@@ -964,31 +1003,34 @@ module Make = (Reconciler: ReconcilerType) => {
        * Creates a reducer-based state
        */
       module State = {
-        let use = (initial: unit => 'state): ('state, ('state => 'state) => unit) => {
+        type action('state) = 'state => 'state;
+        type tuple('state) = ('state, action('state) => unit);
+
+        let use = (initial: unit => 'state): tuple('state) => {
           let wip = RenderContext.getCurrentFiber();
           let state = RenderContext.make(Types.Tags.Hook.State);
           let dispatch = RenderContext.make(Types.Tags.Hook.SetState);
 
-          switch (state.value^, dispatch.value^) {
+          switch (state.value, dispatch.value) {
             | (Some(actualState), Some(actualDispatch)) => {
               (Opaque.return(actualState), Opaque.return(actualDispatch));
             };
             | (_, _) => {
               let initialState = initial();
-              let callback = (action: ('state => 'state)) => {
-                let%OptionUnit opaqueValue = state.value^;
-                let actualValue = Opaque.return(opaqueValue);
-                let newState = action();
+              let callback = (action: action('state)) => {
+                let%OptionUnit opaqueValue = state.value;
+                let actualValue: 'state = Opaque.return(opaqueValue);
+                let newState = action(actualValue);
 
                 if (newState != actualValue) {
-                  state.value := Some(Opaque.convert(newState));
+                  state.value = Some(Opaque.convert(newState));
                   wip.shouldUpdate = true;
                   Core.update();
                 }
               };
 
-              state.value := Some(Opaque.convert(initialState));
-              dispatch.value := Some(Opaque.convert(callback));
+              state.value = Some(Opaque.convert(initialState));
+              dispatch.value = Some(Opaque.convert(callback));
 
               (initialState, callback);
             };
@@ -1003,11 +1045,11 @@ module Make = (Reconciler: ReconcilerType) => {
         let use = (initialValue: 'a): Types.Reference.t('a) => {
           let state = RenderContext.make(Types.Tags.Hook.Reference);
 
-          switch (state.value^) {
+          switch (state.value) {
             | Some(value) => Opaque.return(value);
             | None => {
               let value = Types.Reference.Mutable(ref(Some(initialValue)));
-              state.value := Some(Opaque.convert(value));
+              state.value = Some(Opaque.convert(value));
               value;
             };
           }
@@ -1021,11 +1063,11 @@ module Make = (Reconciler: ReconcilerType) => {
         let use = (initialValue: 'a): ref('a) => {
           let state = RenderContext.make(Types.Tags.Hook.Mutable);
 
-          switch (state.value^) {
+          switch (state.value) {
             | Some(value) => Opaque.return(value);
             | None => {
               let value = ref(initialValue);
-              state.value := Some(Opaque.convert(value));
+              state.value = Some(Opaque.convert(value));
               value;
             };
           }
@@ -1037,11 +1079,11 @@ module Make = (Reconciler: ReconcilerType) => {
           let wip = RenderContext.getCurrentFiber();
           let state = RenderContext.make(Types.Tags.Hook.Identifier);
 
-          switch (state.value^) {
+          switch (state.value) {
             | Some(value) => Opaque.return(value);
             | None => {
               let value = wip.identifier;
-              state.value := Some(Opaque.convert(value));
+              state.value = Some(Opaque.convert(value));
               value;
             };
           }
@@ -1087,10 +1129,10 @@ module Make = (Reconciler: ReconcilerType) => {
 
         let render: Types.Component.t('props) = Opaque.return(constructor);
         let props: 'props = Opaque.return(wip.props);
-        render(props, {
+        render({
           key: wip.key,
           ref: wip.ref,
-        });
+        }, props);
       });
       Hooks.RenderContext.finishRender();
 
@@ -1107,8 +1149,8 @@ module Make = (Reconciler: ReconcilerType) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
         let instance = Context.read(wip, props.context);
 
-        let children: option(Types.Element.t) = if (instance.shouldUpdate^) {
-          props.build(instance.value^);
+        let children: option(Types.Element.t) = if (instance.shouldUpdate) {
+          props.build(instance.value);
         } else {
           let%Option actualCurrent = current;
           let result = actualCurrent.children;
@@ -1135,8 +1177,8 @@ module Make = (Reconciler: ReconcilerType) => {
       switch (wip.instance) {
         | None => {
           let instance: Context.Instance.t('a) = {
-            value: ref(actualValue),
-            shouldUpdate: ref(true),
+            value: actualValue,
+            shouldUpdate: true,
           };
           wip.instance = Some(Opaque.convert(instance));
         };
@@ -1145,8 +1187,8 @@ module Make = (Reconciler: ReconcilerType) => {
           let%OptionOrError actualCurrent = (current, Exceptions.UnboundContextInstance);
           let%OptionOrError prevOpaqueInstance = (actualCurrent.instance, Exceptions.UnboundContextInstance);
           let prevInstance: Context.Instance.t('a) = Opaque.return(prevOpaqueInstance);
-          instance.shouldUpdate := actualValue != prevInstance.value^;
-          instance.value := actualValue;
+          instance.shouldUpdate = actualValue != prevInstance.value;
+          instance.value = actualValue;
         };
       }
 
@@ -1170,7 +1212,12 @@ module Make = (Reconciler: ReconcilerType) => {
       if (wip.instance == None) {
         let%OptionOrError constructor = (wip.constructor, Exceptions.InvalidHostConstructor);
         let stringConstructor: string = Opaque.return(constructor);
-        let instance = Reconciler.createInstance(stringConstructor, props.attributes);
+        let instance = Reconciler.createInstance(
+          stringConstructor,
+          props.attributes,
+          wip.identifier,
+          wip,
+        );
         wip.instance = Some(Opaque.convert(instance));
       }
       ReconcileChildren.call(current, wip, props.children);
@@ -1209,7 +1256,7 @@ module Make = (Reconciler: ReconcilerType) => {
             Opaque.Set.forEach(deps, (contextType) => {
               let instance = Context.read(wip, contextType);
 
-              if (instance.shouldUpdate^) {
+              if (instance.shouldUpdate) {
                 shouldUpdate := true;
               }
             });
@@ -1299,11 +1346,13 @@ module Make = (Reconciler: ReconcilerType) => {
   module Commit = {
     module Error = {
       let call = (wip: Fiber.t) => {
+        let%OptionUnit error = wip.error;
         if (wip.fiberTag == Types.Tags.Fiber.ErrorBoundary) {
-          let%OptionUnit error = wip.error;
           let props: ErrorBoundary.props = Opaque.return(wip.props);
 
           props.onError(error);
+        } else {
+          raise(error);
         }
       };
     };
@@ -1317,7 +1366,8 @@ module Make = (Reconciler: ReconcilerType) => {
         Reconciler.appendChild(
           Opaque.return(parentInstance),
           Opaque.return(childInstance),
-          Utils.getInstanceIndex(parent),
+          Utils.getInstanceIndex(parent, wip),
+          wip,
         );
 
         switch (wip.ref) {
@@ -1334,7 +1384,7 @@ module Make = (Reconciler: ReconcilerType) => {
           let { tag, value }: Hooks.Slot.t = Opaque.return(hook);
 
           if (tag == Types.Tags.Hook.LayoutEffect) {
-            let%OptionUnit actualValue = value^;
+            let%OptionUnit actualValue = value;
             let (effect, cleanup, workTag): tuple = Opaque.return(actualValue);
 
             if (workTag == Types.Tags.Work.Placement) {
@@ -1359,12 +1409,16 @@ module Make = (Reconciler: ReconcilerType) => {
         let%OptionUnit parent = Utils.getHostParent(wip);
         let%OptionUnit childInstance = wip.instance;
         let%OptionUnit alternate = wip.alternate;
+        
+        let returnedAltProps: Host.props = Opaque.return(alternate.props);
+        let returnedProps: Host.props = Opaque.return(wip.props);
 
         Reconciler.commitUpdate(
           Opaque.return(childInstance),
-          Opaque.return(alternate.props),
-          Opaque.return(wip.props),
-          Utils.getInstanceIndex(parent),
+          returnedAltProps.attributes,
+          returnedProps.attributes,
+          Utils.getInstanceIndex(parent, wip),
+          wip,
         );
       };
 
@@ -1375,7 +1429,7 @@ module Make = (Reconciler: ReconcilerType) => {
           let { tag, value }: Hooks.Slot.t = Opaque.return(hook);
 
           if (tag == Types.Tags.Hook.LayoutEffect) {
-            let%OptionUnit actualValue = value^;
+            let%OptionUnit actualValue = value;
             let (effect, cleanup, workTag): tuple = Opaque.return(actualValue);
 
             if (workTag == Types.Tags.Work.Update) {
@@ -1408,7 +1462,8 @@ module Make = (Reconciler: ReconcilerType) => {
         Reconciler.removeChild(
           Opaque.return(parentInstance),
           Opaque.return(childInstance),
-          Utils.getInstanceIndex(parent),
+          Utils.getInstanceIndex(parent, wip),
+          wip,
         );
 
         switch (wip.ref) {
@@ -1424,7 +1479,7 @@ module Make = (Reconciler: ReconcilerType) => {
           let { tag, value }: Hooks.Slot.t = Opaque.return(hook);
 
           if (tag == Types.Tags.Hook.LayoutEffect) {
-            let%OptionUnit actualValue = value^;
+            let%OptionUnit actualValue = value;
             let (_, cleanup, _): tuple = Opaque.return(actualValue);
             let%OptionUnit actualCleanup = cleanup^;
             actualCleanup();
@@ -1462,8 +1517,9 @@ module Make = (Reconciler: ReconcilerType) => {
             let { tag, value }: Hooks.Slot.t = Opaque.return(hook);
 
             if (tag == Types.Tags.Hook.Effect) {
-              let%OptionUnit actualValue = value^;
+              let%OptionUnit actualValue = value;
               let (effect, cleanup, workTag): tuple = Opaque.return(actualValue);
+
 
               if (workTag == Types.Tags.Work.Placement) {
                 cleanup := effect();
@@ -1489,7 +1545,7 @@ module Make = (Reconciler: ReconcilerType) => {
             let { tag, value }: Hooks.Slot.t = Opaque.return(hook);
 
             if (tag == Types.Tags.Hook.Effect) {
-              let%OptionUnit actualValue = value^;
+              let%OptionUnit actualValue = value;
               let (effect, cleanup, workTag): tuple = Opaque.return(actualValue);
 
               if (workTag == Types.Tags.Work.Update) {
@@ -1520,7 +1576,7 @@ module Make = (Reconciler: ReconcilerType) => {
             let { tag, value }: Hooks.Slot.t = Opaque.return(hook);
 
             if (tag == Types.Tags.Hook.Effect) {
-              let%OptionUnit actualValue = value^;
+              let%OptionUnit actualValue = value;
               let (_, cleanup, _): tuple = Opaque.return(actualValue);
               let%OptionUnit actualCleanup = cleanup^;
               actualCleanup();
@@ -1564,31 +1620,35 @@ module Make = (Reconciler: ReconcilerType) => {
         };
 
         let rec call = (wip: option(Fiber.t)): unit => {
-          let%OptionUnit fiber = wip;
+          let%OptionUnit commitingFiber = wip;
 
           let commitOnChild = ref(true);
 
-          switch (fiber.workTag) {
-            | Types.Tags.Work.Placement => safelyCommit(fiber, Placement.call, None);
-            | Types.Tags.Work.Update => safelyCommit(fiber, Update.call, None);
+          switch (commitingFiber.workTag) {
+            | Types.Tags.Work.Placement => {
+              safelyCommit(commitingFiber, Placement.call, None);
+            };
+            | Types.Tags.Work.Update => {
+              safelyCommit(commitingFiber, Update.call, None);
+            };
             | Types.Tags.Work.Delete => {
-              safelyCommit(fiber, Delete.call, fiber.alternate);
+              safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
               commitOnChild := false;
-            }
+            };
             | Types.Tags.Work.Replace => {
-              safelyCommit(fiber, Delete.call, fiber.alternate);
-              safelyCommit(fiber, Placement.call, None);
+              safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
+              safelyCommit(commitingFiber, Placement.call, None);
             };
             | _ => ();
           }
 
-          if (fiber.error != None) {
-            Error.call(fiber);
+          if (commitingFiber.error != None) {
+            Error.call(commitingFiber);
           } else if (commitOnChild^) {
-            call(fiber.child);
+            call(commitingFiber.child);
           }
 
-          call(fiber.sibling);
+          call(commitingFiber.sibling);
         };
       };
     };
@@ -1609,49 +1669,56 @@ module Make = (Reconciler: ReconcilerType) => {
       };
 
       let rec call = (wip: option(Fiber.t)): unit => {
-        let%OptionUnit fiber = wip;
+        let%OptionUnit commitingFiber = wip;
 
         let commitOnChild = ref(true);
 
-        switch (fiber.workTag) {
-          | Types.Tags.Work.Placement => safelyCommit(fiber, Placement.call, None);
-          | Types.Tags.Work.Update => safelyCommit(fiber, Update.call, None);
+        switch (commitingFiber.workTag) {
+          | Types.Tags.Work.Placement => {
+            safelyCommit(commitingFiber, Placement.call, None);
+          };
+          | Types.Tags.Work.Update => {
+            safelyCommit(commitingFiber, Update.call, None);
+          };
           | Types.Tags.Work.Delete => {
-            safelyCommit(fiber, Delete.call, fiber.alternate);
+            safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
             commitOnChild := false;
-          }
+          };
           | Types.Tags.Work.Replace => {
-            safelyCommit(fiber, Delete.call, fiber.alternate);
-            safelyCommit(fiber, Placement.call, None);
+            safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
+            safelyCommit(commitingFiber, Placement.call, None);
           };
           | _ => ();
         }
 
-        if (fiber.error != None) {
-          Error.call(fiber);
+        if (commitingFiber.error != None) {
+          Error.call(commitingFiber);
         } else if (commitOnChild^) {
-          call(fiber.child);
+          call(commitingFiber.child);
         }
 
-        call(fiber.sibling);
+        call(commitingFiber.sibling);
       };
     };
 
     module Root = {
       let call = () => {
         ignore({
-          let%OptionUnit wip = Core.wipRoot^;
+          let%OptionUnit wip = Core.root.wip;
           Work.call(wip.child);
         });
         ignore({
-          let%OptionUnit current = Core.currentRoot^;
+          let%OptionUnit current = Core.root.current;
           Fiber.detach(current.alternate);
         });
-        Core.currentRoot := Core.wipRoot^;
-        Core.wipRoot := None;
+        if (Core.root.wip == None) {
+          raise(Exceptions.MissingWorkInProgressRoot);
+        }
+        Core.root.current = Core.root.wip;
+        Core.root.wip = None;
         ignore({
-          let%OptionUnit current = Core.currentRoot^;
-          Work.call(current.child);
+          let%OptionUnit current = Core.root.current;
+          Lifecycles.Work.call(current.child);
         });
       };
     };
@@ -1678,14 +1745,16 @@ module Make = (Reconciler: ReconcilerType) => {
     }
   }
 
+  exception Test;
+
   let workLoop = (deadline: unit => float) => {
     let shouldYield = ref(false);
 
     let rec loop = (deadline: unit => float) => {
       if (!shouldYield^) {
-        let%OptionUnit nextUnitOfWork = Core.nextUnitOfWork^
+        let%OptionUnit nextUnitOfWork = Core.root.next;
 
-        Core.nextUnitOfWork := performUnitOfWork(
+        Core.root.next = performUnitOfWork(
           nextUnitOfWork.alternate,
           nextUnitOfWork,
         );
@@ -1698,7 +1767,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     loop(deadline);
 
-    if (Core.nextUnitOfWork^ == None && Core.wipRoot^ != None) {
+    if (Core.root.next == None && Core.root.wip != None) {
       Commit.Root.call();
     }
   };

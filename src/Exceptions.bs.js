@@ -23,6 +23,10 @@ var UnboundContextInstance = Caml_exceptions.create("Exceptions-ReView.UnboundCo
 
 var InvalidHostConstructor = Caml_exceptions.create("Exceptions-ReView.InvalidHostConstructor");
 
+var MissingWorkInProgressRoot = Caml_exceptions.create("Exceptions-ReView.MissingWorkInProgressRoot");
+
+var MissingCurrentRoot = Caml_exceptions.create("Exceptions-ReView.MissingCurrentRoot");
+
 exports.MissingBasicComponentConstructor = MissingBasicComponentConstructor;
 exports.MissingComponentConstructor = MissingComponentConstructor;
 exports.MissingMemoComponentConstructor = MissingMemoComponentConstructor;
@@ -33,4 +37,6 @@ exports.MissingContext = MissingContext;
 exports.DesyncContextValue = DesyncContextValue;
 exports.UnboundContextInstance = UnboundContextInstance;
 exports.InvalidHostConstructor = InvalidHostConstructor;
+exports.MissingWorkInProgressRoot = MissingWorkInProgressRoot;
+exports.MissingCurrentRoot = MissingCurrentRoot;
 /* No side effect */

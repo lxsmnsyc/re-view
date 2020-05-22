@@ -11,7 +11,7 @@ function make(prim) {
 
 function set(prim, prim$1, prim$2) {
   NativeArrayJs.arraySet(prim, prim$1, prim$2);
-  return /* () */0;
+  
 }
 
 function get(prim, prim$1) {
@@ -20,7 +20,7 @@ function get(prim, prim$1) {
 
 function forEach(prim, prim$1) {
   NativeArrayJs.arrayForEach(prim, prim$1);
-  return /* () */0;
+  
 }
 
 var $$Array = {
@@ -36,7 +36,7 @@ function make$1(prim) {
 
 function set$1(prim, prim$1, prim$2) {
   NativeMapJs.mapSet(prim, prim$1, prim$2);
-  return /* () */0;
+  
 }
 
 function get$1(prim, prim$1) {
@@ -60,7 +60,7 @@ function make$2(prim) {
 
 function add(prim, prim$1) {
   NativeSetJs.setAdd(prim, prim$1);
-  return /* () */0;
+  
 }
 
 function has$1(prim, prim$1) {
@@ -69,7 +69,7 @@ function has$1(prim, prim$1) {
 
 function forEach$1(prim, prim$1) {
   NativeSetJs.setForEach(prim, prim$1);
-  return /* () */0;
+  
 }
 
 var $$Set = {

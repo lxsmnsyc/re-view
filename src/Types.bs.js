@@ -2,9 +2,55 @@
 'use strict';
 
 
-var Fiber = { };
+function map(tag) {
+  switch (tag) {
+    case /* Component */0 :
+        return "Component";
+    case /* Host */1 :
+        return "Host";
+    case /* Root */2 :
+        return "Root";
+    case /* Fragment */3 :
+        return "Fragment";
+    case /* Basic */4 :
+        return "Basic";
+    case /* Memo */5 :
+        return "Memo";
+    case /* MemoBasic */6 :
+        return "MemoBasic";
+    case /* ErrorBoundary */7 :
+        return "ErrorBoundary";
+    case /* ContextProvider */8 :
+        return "ContextProvider";
+    case /* ContextConsumer */9 :
+        return "ContextConsumer";
+    
+  }
+}
 
-var Work = { };
+var Fiber = {
+  map: map
+};
+
+function map$1(tag) {
+  switch (tag) {
+    case /* None */0 :
+        return "None";
+    case /* Placement */1 :
+        return "Placement";
+    case /* Update */2 :
+        return "Update";
+    case /* Delete */3 :
+        return "Delete";
+    case /* Replace */4 :
+        return "Replace";
+    
+  }
+}
+
+var Work = {
+  map: map$1
+};
 
 var Hook = { };
 

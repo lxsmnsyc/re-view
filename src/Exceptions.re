@@ -63,3 +63,6 @@ exception UnboundContextInstance;
  * Attempt to construct a host instance with an invalid constructor.
  */
 exception InvalidHostConstructor;
+
+exception MissingWorkInProgressRoot;
+exception MissingCurrentRoot;

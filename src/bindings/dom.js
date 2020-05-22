@@ -27,22 +27,26 @@
  */
 'use strict';
 
-const CUSTOM_ATTR = 're-view-id';
-const CUSTOM_PROP = 'reviewID';
+const FIBER = 'fiberInstance';
 
-function flatten({ aria }) {
-  return {
-    ...aria,
-  };
-}
+const CUSTOM_ATTR = 're-view-index';
+const CUSTOM_PROP = 'reviewIndex';
 
-function createInstance(constructor, props) {
+const ID_ATTR = 're-view-id';
+const ID_PROP = 'reviewID';
+
+function createInstance(constructor, props, id, fiber) {
   if (constructor === 'text') {
-    return document.createTextNode(props.value);
+    const node = document.createTextNode(props.value);
+    node[ID_PROP] = id;
+    node[FIBER] = fiber;
+    return node;
   }
-  const node = document.createElement(constructor);
 
-  props = flatten(props);
+  const node = document.createElement(constructor);
+  node.setAttribute(ID_ATTR, id);
+  node[ID_PROP] = id;
+  node[FIBER] = fiber;
 
   Object.entries(props).forEach(([key, value]) => {
     if (key === 'class') {
@@ -55,8 +59,9 @@ function createInstance(constructor, props) {
   return node;
 }
 
-function appendChild(parentInstance, childInstance, index) {
+function appendChild(parentInstance, childInstance, index, fiber) {
   let nodes = parentInstance.children;
+  childInstance[FIBER] = fiber;
   childInstance[CUSTOM_PROP] = index.toString();
   if (childInstance instanceof Element) {
     childInstance.setAttribute(CUSTOM_ATTR, index.toString());
@@ -85,7 +90,8 @@ function appendChild(parentInstance, childInstance, index) {
   parentInstance.appendChild(childInstance);
 }
 
-function removeChild(parentInstance, childInstance, index) {
+function removeChild(parentInstance, childInstance, index, fiber) {
+  childInstance[FIBER] = fiber;
   let nodes = parentInstance.children;
 
   for (let i = 0; i < nodes.length; i += 1) {
@@ -97,9 +103,14 @@ function removeChild(parentInstance, childInstance, index) {
   }
 }
 
-function commitUpdate(instance, oldProps, newProps, index) {
-  oldProps = flatten(oldProps);
-  newProps = flatten(newProps);
+function commitUpdate(instance, oldProps, newProps, index, fiber) {
+  instance[FIBER] = fiber;
+  instance[instance] = index.toString();
+  if (instance instanceof Element) {
+    instance.setAttribute(CUSTOM_ATTR, index.toString());
+  }
+
+  console.log(instance, oldProps, newProps, index, fiber);
 
   Object.keys(oldProps).forEach((key) => {
     if (newProps[key] == null) {
@@ -110,6 +121,7 @@ function commitUpdate(instance, oldProps, newProps, index) {
       }
     }
   });
+
   Object.entries(newProps).forEach(([key, value]) => {
     if (key === 'class') {
       instance.class = value;

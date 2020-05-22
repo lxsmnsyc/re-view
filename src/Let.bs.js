@@ -18,10 +18,9 @@ var $$Option = {
 function let_$1(value, mapper) {
   if (value !== undefined) {
     Curry._1(mapper, Caml_option.valFromOption(value));
-    return /* () */0;
-  } else {
-    return /* () */0;
+    return ;
   }
+  
 }
 
 var OptionUnit = {
@@ -32,9 +31,8 @@ function let_$2(param, mapper) {
   var value = param[0];
   if (value !== undefined) {
     return Curry._1(mapper, Caml_option.valFromOption(value));
-  } else {
-    throw param[1];
   }
+  throw param[1];
 }
 
 var OptionOrError = {
