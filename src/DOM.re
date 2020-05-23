@@ -29,7 +29,7 @@ module Reconciler: Reconciler.ReconcilerType = {
   type t;
 
   [@bs.module "./bindings/dom.js"]
-  external createInstance: (string, 'props, int, 'fiber) => t = "createInstance";
+  external createInstance: (string, 'props, string, 'fiber) => t = "createInstance";
   [@bs.module "./bindings/dom.js"]
   external appendChild: (t, t, int, 'fiber) => unit = "appendChild";
   [@bs.module "./bindings/dom.js"]

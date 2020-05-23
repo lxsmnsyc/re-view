@@ -29,7 +29,7 @@
 module type ReconcilerType = {
   type t;
 
-  let createInstance: (string, 'props, int, 'fiber) => t;
+  let createInstance: (string, 'props, string, 'fiber) => t;
   let appendChild: (t, t, int, 'fiber) => unit;
   let removeChild: (t, t, int, 'fiber) => unit;
   let commitUpdate: (t, 'props, 'props, int, 'fiber) => unit;

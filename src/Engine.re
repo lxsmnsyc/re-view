@@ -62,7 +62,7 @@ module Make = (Reconciler: ReconcilerType) => {
       /**
        * Mapping
        */
-      mutable identifier: int,
+      mutable identifier: string,
       mutable key: option(string),
       mutable index: int,
       map: Opaque.Map.t,
@@ -114,7 +114,7 @@ module Make = (Reconciler: ReconcilerType) => {
       dependencies: Opaque.Set.make(),
       shouldUpdate: false,
       children: None,
-      identifier: 0,
+      identifier: "",
       error: None,
     };
 
@@ -485,7 +485,7 @@ module Make = (Reconciler: ReconcilerType) => {
       replacementFiber.constructor = element.constructor;
       replacementFiber.workTag = Types.Tags.Work.Replace;
       replacementFiber.workStringTag = "Replace";
-      replacementFiber.identifier = Fiber.createIndex();
+      replacementFiber.identifier = element.name ++ "-" ++ string_of_int(Fiber.createIndex());
 
       attachFiberAlternate(oldFiber, replacementFiber);
       mapFiberToParent(parent, replacementFiber, index, key);
@@ -539,7 +539,7 @@ module Make = (Reconciler: ReconcilerType) => {
       creationFiber.workTag = Types.Tags.Work.Placement;
       creationFiber.workStringTag = "Placement";
       creationFiber.constructor = element.constructor;
-      creationFiber.identifier = Fiber.createIndex();
+      creationFiber.identifier = element.name ++ "-" ++ string_of_int(Fiber.createIndex());
 
       mapFiberToParent(parent, creationFiber, index, key);
 
@@ -1096,7 +1096,7 @@ module Make = (Reconciler: ReconcilerType) => {
       };
 
       module Identifier = {
-        let use = (): int => {
+        let use = (): string => {
           let wip = RenderContext.getCurrentFiber();
           let state = RenderContext.make(Types.Tags.Hook.Identifier);
 

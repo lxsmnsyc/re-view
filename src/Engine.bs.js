@@ -30,7 +30,7 @@ function Make(Reconciler) {
             sibling: undefined,
             child: undefined,
             children: undefined,
-            identifier: 0,
+            identifier: "",
             key: undefined,
             index: 0,
             map: Opaque$ReView.$$Map.make(undefined),
@@ -352,7 +352,7 @@ function Make(Reconciler) {
     replacementFiber.constructor = element.constructor;
     replacementFiber.workTag = /* Replace */4;
     replacementFiber.workStringTag = "Replace";
-    replacementFiber.identifier = createIndex(undefined);
+    replacementFiber.identifier = element.name + ("-" + String(createIndex(undefined)));
     attachFiberAlternate(oldFiber, replacementFiber);
     mapFiberToParent(parent, replacementFiber, index, key);
     return replacementFiber;
@@ -383,7 +383,7 @@ function Make(Reconciler) {
     creationFiber.workTag = /* Placement */1;
     creationFiber.workStringTag = "Placement";
     creationFiber.constructor = element.constructor;
-    creationFiber.identifier = createIndex(undefined);
+    creationFiber.identifier = element.name + ("-" + String(createIndex(undefined)));
     mapFiberToParent(parent, creationFiber, index, key);
     return creationFiber;
   };
