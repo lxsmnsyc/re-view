@@ -110,8 +110,6 @@ function commitUpdate(instance, oldProps, newProps, index, fiber) {
     instance.setAttribute(CUSTOM_ATTR, index.toString());
   }
 
-  console.log(instance, oldProps, newProps, index, fiber);
-
   Object.keys(oldProps).forEach((key) => {
     if (newProps[key] == null) {
       if (key === 'class') {

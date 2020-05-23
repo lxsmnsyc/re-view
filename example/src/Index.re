@@ -6,10 +6,11 @@ open ReView;
 
 let initialImage = "https://images.dog.ceo/breeds/frise-bichon/jh-ezio-3.jpg";
 let finalImage = "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_2984.jpg";
-let state = initialImage;
 
-module App = DOM.Component({
+module Image = DOM.Component({
   type props = unit;
+
+  let name = "Image";
 
   let make = (_, _) => {
     let (state, setState) = DOM.useState(() => initialImage);
@@ -20,24 +21,43 @@ module App = DOM.Component({
       None;
     }, state);
 
+    DOM.Element.make("img", { key: None, ref: None}, {
+      attributes: DOM.Element.attributes(
+        ~src=state,
+        (),
+      ),
+      children: None,
+    });
+  };
+});
+
+module ImageGroup = DOM.Component({
+  type props = unit;
+
+  let name = "ImageGroup";
+
+  let make = (_, _) => {
     DOM.Element.make("div", { key: None, ref: None }, {
       attributes: DOM.Element.attributes(),
       children: Some([|
-        DOM.Element.make("img", { key: None, ref: None}, {
-          attributes: DOM.Element.attributes(
-            ~src=state,
-            (),
-          ),
-          children: None,
-        }),
-        DOM.Element.make("img", { key: None, ref: None}, {
-          attributes: DOM.Element.attributes(
-            ~src=state,
-            (),
-          ),
-          children: None,
-        }),
+        Image.make({ key: None, ref: None }, ()),
+        Image.make({ key: None, ref: None }, ()),
       |]),
+    });
+  };
+});
+
+module App = DOM.Component({
+  type props = unit;
+
+  let name = "App";
+
+  let make = (_, _) => {
+    DOM.Fragment.make({ key: None, ref: None }, {
+      children: [|
+        ImageGroup.make({ key: None, ref: None }, ()),
+        ImageGroup.make({ key: None, ref: None }, ()),
+      |],
     });
   };
 });
