@@ -33,15 +33,24 @@ module Make = (Reconciler: ReconcilerType) => {
     let index = ref(0);
 
     type t = {
+      /**
+       * fiber name
+       */
+      name: string,
+      /**
+       * Fiber constructor
+       */
       mutable constructor: option(Opaque.t),
       /**
        * Fiber tag
        */
       fiberTag: Types.Tags.Fiber.t,
+      fiberStringTag: string,
       /**
        * Work tag
        */
       mutable workTag: Types.Tags.Work.t,
+      mutable workStringTag: string,
       /**
        * Pointers
        */
@@ -70,10 +79,6 @@ module Make = (Reconciler: ReconcilerType) => {
        */
       mutable instance: option(Opaque.t),
       /**
-       * Error value
-       */
-      mutable error: option(exn),
-      /**
        * Hooks
        */
       mutable hooks: Opaque.Array.t,
@@ -82,12 +87,19 @@ module Make = (Reconciler: ReconcilerType) => {
        */
       dependencies: Opaque.Set.t,
       mutable shouldUpdate: bool,
+      /**
+       * Error
+       */
+      mutable error: option(exn),
     };
 
-    let make = (fiberTag: Types.Tags.Fiber.t, props: 'a): t => {
+    let make = (name: string, fiberTag: Types.Tags.Fiber.t, props: 'a): t => {
+      name: name,
       constructor: None,
       fiberTag: fiberTag,
+      fiberStringTag: Types.Tags.Fiber.map(fiberTag),
       workTag: Types.Tags.Work.None,
+      workStringTag: "None",
       parent: None,
       alternate: None,
       sibling: None,
@@ -96,7 +108,6 @@ module Make = (Reconciler: ReconcilerType) => {
       index: 0,
       props: Opaque.convert(props),
       instance: None,
-      error: None,
       map: Opaque.Map.make(),
       hooks: Opaque.Array.make(),
       ref: Types.Reference.None,
@@ -104,6 +115,7 @@ module Make = (Reconciler: ReconcilerType) => {
       shouldUpdate: false,
       children: None,
       identifier: 0,
+      error: None,
     };
 
     /**
@@ -121,6 +133,7 @@ module Make = (Reconciler: ReconcilerType) => {
         actualFiber.alternate = None;
         actualFiber.constructor = None;
         actualFiber.workTag = None;
+        actualFiber.workStringTag = "None";
         actualFiber.parent = None;
         actualFiber.children = None;
         actualFiber.instance = None;
@@ -142,8 +155,11 @@ module Make = (Reconciler: ReconcilerType) => {
 
   module Context = {
     type t('a) = {
+      name: string,
       defaultValue: 'a,
     };
+
+    let make = (name: string, defaultValue: 'a) => ({ name, defaultValue });
 
     module Instance = {
       type t('a) = {
@@ -166,6 +182,7 @@ module Make = (Reconciler: ReconcilerType) => {
         };
 
         Some({
+          name: context.name ++ ".Provider",
           fiberTag: Types.Tags.Fiber.ContextProvider,
           constructor: None,
           key: key,
@@ -187,6 +204,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
       let make: Types.Component.t(props('a)) = ({ key, ref }, { context, build }) => {
         Some({
+          name: context.name ++ ".Consumer",
           fiberTag: Types.Tags.Fiber.ContextConsumer,
           constructor: None,
           key: key,
@@ -223,6 +241,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let make: Types.Component.t(props) = ({ key }, props) => {
       Some({
+        name: "ErrorBoundary",
         fiberTag: Types.Tags.Fiber.ErrorBoundary,
         constructor: None,
         key: key,
@@ -239,6 +258,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let make: Types.Component.t(props) = ({ key }, props) => {
       Some({
+        name: "Fragment",
         fiberTag: Types.Tags.Fiber.Fragment,
         constructor: None,
         key: key,
@@ -264,6 +284,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let make: Types.Component.t(props) = ({ key, ref }, { constructor, attributes, children }) => {
       Some({
+        name: constructor,
         fiberTag: Types.Tags.Fiber.Host,
         constructor: Some(Opaque.convert(constructor)),
         key: key,
@@ -282,6 +303,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let make: Types.Component.t(props) = ({ key, ref }, props) => {
       Some({
+        name: C.name,
         fiberTag: Types.Tags.Fiber.Basic,
         constructor: Some(Opaque.convert(C.make)),
         key: key,
@@ -296,6 +318,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let make: Types.Component.t(props) = ({ key, ref }, props) => {
       Some({
+        name: C.name,
         fiberTag: Types.Tags.Fiber.MemoBasic,
         constructor: Some(Opaque.convert(C.make)),
         key: key,
@@ -310,6 +333,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let make: Types.Component.t(props) = ({ key, ref }, props) => {
       Some({
+        name: C.name,
         fiberTag: Types.Tags.Fiber.Memo,
         constructor: Some(Opaque.convert(C.make)),
         key: key,
@@ -325,6 +349,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let make: Types.Component.t(props) = ({ key, ref }, props) => {
       Some({
+        name: C.name,
         fiberTag: Types.Tags.Fiber.Component,
         constructor: Some(Opaque.convert(C.make)),
         key: key,
@@ -350,7 +375,7 @@ module Make = (Reconciler: ReconcilerType) => {
     let update = () => {
       switch (root.current) {
         | Some(current) => {
-          let updateFiber = Fiber.make(Types.Tags.Fiber.Root, current.props);
+          let updateFiber = Fiber.make("Root", Types.Tags.Fiber.Root, current.props);
 
           updateFiber.instance = current.instance;
           updateFiber.alternate = root.current;
@@ -370,7 +395,7 @@ module Make = (Reconciler: ReconcilerType) => {
         children: element,
       };
 
-      let renderFiber = Fiber.make(Types.Tags.Fiber.Root, props);
+      let renderFiber = Fiber.make("Root", Types.Tags.Fiber.Root, props);
 
       renderFiber.instance = Some(Opaque.convert(container));
       renderFiber.alternate = root.current;
@@ -398,25 +423,26 @@ module Make = (Reconciler: ReconcilerType) => {
      * Measure the instance's child index in relation to it's parent.
      */
     let getInstanceIndex = (parent: Fiber.t, wip: Fiber.t): int => {
-      let counter = ref(0);
+      let count = ref(0);
+      let found = ref(false);
 
-
-      let rec measure = (measuringFiber: option(Fiber.t)): unit => {
-        let%OptionUnit actualMeasuringFiber = measuringFiber;
-        if (actualMeasuringFiber !== wip) {
-          if (actualMeasuringFiber.fiberTag == Types.Tags.Fiber.Host) {
-            counter := counter^ + 1;
+      let rec measure = (currentFiber: option(Fiber.t)) => {
+        let%OptionUnit current = currentFiber;
+        if (!found^ && current !== wip) {
+          if (current.fiberTag == Types.Tags.Fiber.Host) {
+            count := count^ + 1;
           } else {
-            measure(actualMeasuringFiber.child);
+            measure(current.child);
           }
-          measure(actualMeasuringFiber.sibling);
+          measure(current.sibling);
+        } else {
+          found := true;
         }
       };
 
       measure(parent.child);
 
-
-      counter^;
+      count^;
     };
   };
 
@@ -455,9 +481,10 @@ module Make = (Reconciler: ReconcilerType) => {
     };
 
     let replaceFiber = (parent: Fiber.t, oldFiber: Fiber.t, element: Types.Element.t, index: int, key: option(string)): Fiber.t => {
-      let replacementFiber = Fiber.make(element.fiberTag, element.props);
+      let replacementFiber = Fiber.make(element.name, element.fiberTag, element.props);
       replacementFiber.constructor = element.constructor;
       replacementFiber.workTag = Types.Tags.Work.Replace;
+      replacementFiber.workStringTag = "Replace";
       replacementFiber.identifier = Fiber.createIndex();
 
       attachFiberAlternate(oldFiber, replacementFiber);
@@ -467,9 +494,10 @@ module Make = (Reconciler: ReconcilerType) => {
     };
 
     let deleteFiber = (parent: Fiber.t, oldFiber: Fiber.t, index: int, key: option(string)): Fiber.t => {
-      let deletionFiber = Fiber.make(oldFiber.fiberTag, oldFiber.props);
+      let deletionFiber = Fiber.make(oldFiber.name, oldFiber.fiberTag, oldFiber.props);
       deletionFiber.constructor = oldFiber.constructor;
       deletionFiber.workTag = Types.Tags.Work.Delete;
+      deletionFiber.workStringTag = "Delete";
       deletionFiber.instance = oldFiber.instance;
 
       attachFiberAlternate(oldFiber, deletionFiber);
@@ -482,12 +510,13 @@ module Make = (Reconciler: ReconcilerType) => {
      * Updates fiber from the given element.
      */
     let updateFiberFromElement = (parent: Fiber.t, oldFiber: Fiber.t, element: Types.Element.t, index: int, key: option(string)): Fiber.t => {
-      let patchFiber = Fiber.make(oldFiber.fiberTag, element.props);
+      let patchFiber = Fiber.make(oldFiber.name, oldFiber.fiberTag, element.props);
 
       /**
        * Set other fields
        */
       patchFiber.workTag = Types.Tags.Work.Update;
+      patchFiber.workStringTag = "Update";
       patchFiber.constructor = oldFiber.constructor;
       patchFiber.instance = oldFiber.instance;
       patchFiber.identifier = oldFiber.identifier;
@@ -502,12 +531,13 @@ module Make = (Reconciler: ReconcilerType) => {
      * Create fiber from element
      */
     let createFiberFromElement = (parent: Fiber.t, element: Types.Element.t, index: int, key: option(string)): Fiber.t => {
-      let creationFiber = Fiber.make(element.fiberTag, element.props);
+      let creationFiber = Fiber.make(element.name, element.fiberTag, element.props);
 
       /**
        * Set other fields
        */
       creationFiber.workTag = Types.Tags.Work.Placement;
+      creationFiber.workStringTag = "Placement";
       creationFiber.constructor = element.constructor;
       creationFiber.identifier = Fiber.createIndex();
 
@@ -572,23 +602,14 @@ module Make = (Reconciler: ReconcilerType) => {
        * Connects the newest fiber to the wip tree
        */
       let linkFiber = (newFiber: option(Fiber.t), hasElement: bool): unit => {
-        let%OptionUnit linkingFiber = newFiber;
         if (wip.child == None) {
-          /**
-           * Set the newest fiber as the first child of the wip fiber
-           * if the wip fiber doesn't have any child.
-           */
-          wip.child = Some(linkingFiber);
+          wip.child = newFiber;
         } else if (hasElement) {
-          /**
-           * Otherwise, set the new fiber as a sibling from the previously
-           * created fiber.
-           */
           let%OptionUnit prev = previousFiber^;
-          prev.sibling = Some(linkingFiber);
+          prev.sibling = newFiber;
         }
 
-        previousFiber := Some(linkingFiber);
+        previousFiber := newFiber;
       };
 
       let marked = Opaque.Set.make();
@@ -1345,8 +1366,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
   module Commit = {
     module Error = {
-      let call = (wip: Fiber.t) => {
-        let%OptionUnit error = wip.error;
+      let call = (wip: Fiber.t, error: exn) => {
         if (wip.fiberTag == Types.Tags.Fiber.ErrorBoundary) {
           let props: ErrorBoundary.props = Opaque.return(wip.props);
 
@@ -1605,47 +1625,48 @@ module Make = (Reconciler: ReconcilerType) => {
       };
 
       module Work = {
-        let safelyCommit = (wip: Fiber.t, commit: Fiber.t => unit, alternate: option(Fiber.t)) => {
-          let commitAny = () => {
-            switch (alternate) {
-              | None => commit(wip);
-              | Some(alt) => commit(alt);
-            }
-          };
-
-          switch (commitAny()) {
-            | () => ();
-            | exception e => wip.error = Some(e);
+        let commitWork = (wip: Fiber.t, commit: Fiber.t => unit, alternate: option(Fiber.t)) => {
+          switch (alternate) {
+            | None => commit(wip);
+            | Some(alt) => commit(alt);
           }
         };
 
         let rec call = (wip: option(Fiber.t)): unit => {
           let%OptionUnit commitingFiber = wip;
 
-          let commitOnChild = ref(true);
+          let commitSelfAndChild = () => {
+            let commitOnChild = ref(true);
+            switch (commitingFiber.workTag) {
+              | Types.Tags.Work.Placement => {
+                commitWork(commitingFiber, Placement.call, None);
+              };
+              | Types.Tags.Work.Update => {
+                commitWork(commitingFiber, Update.call, None);
+              };
+              | Types.Tags.Work.Delete => {
+                commitWork(commitingFiber, Delete.call, commitingFiber.alternate);
+                commitOnChild := false;
+              };
+              | Types.Tags.Work.Replace => {
+                commitWork(commitingFiber, Delete.call, commitingFiber.alternate);
+                commitWork(commitingFiber, Placement.call, None);
+              };
+              | _ => ();
+            }
 
-          switch (commitingFiber.workTag) {
-            | Types.Tags.Work.Placement => {
-              safelyCommit(commitingFiber, Placement.call, None);
-            };
-            | Types.Tags.Work.Update => {
-              safelyCommit(commitingFiber, Update.call, None);
-            };
-            | Types.Tags.Work.Delete => {
-              safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
-              commitOnChild := false;
-            };
-            | Types.Tags.Work.Replace => {
-              safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
-              safelyCommit(commitingFiber, Placement.call, None);
-            };
-            | _ => ();
+            if (commitOnChild^) {
+              call(commitingFiber.child);
+            }
           }
 
           if (commitingFiber.error != None) {
-            Error.call(commitingFiber);
-          } else if (commitOnChild^) {
-            call(commitingFiber.child);
+            let%OptionUnit error = commitingFiber.error;
+            Error.call(commitingFiber, error);
+          } else {
+            try (commitSelfAndChild()) {
+              | error => Error.call(commitingFiber, error);
+            }
           }
 
           call(commitingFiber.sibling);
@@ -1654,48 +1675,51 @@ module Make = (Reconciler: ReconcilerType) => {
     };
 
     module Work = {
-      let safelyCommit = (wip: Fiber.t, commit: Fiber.t => unit, alternate: option(Fiber.t)) => {
-        let commitAny = () => {
-          switch (alternate) {
-            | None => commit(wip);
-            | Some(alt) => commit(alt);
-          }
-        };
-
-        switch (commitAny()) {
-          | () => ();
-          | exception e => wip.error = Some(e);
+      let commitWork = (wip: Fiber.t, commit: Fiber.t => unit, alternate: option(Fiber.t)) => {
+        switch (alternate) {
+          | None => commit(wip);
+          | Some(alt) => commit(alt);
         }
       };
 
       let rec call = (wip: option(Fiber.t)): unit => {
         let%OptionUnit commitingFiber = wip;
 
-        let commitOnChild = ref(true);
+        let commitSelfAndChild = () => {
+          let commitOnChild = ref(true);
+          switch (commitingFiber.workTag) {
+            | Types.Tags.Work.Placement => {
+              commitWork(commitingFiber, Placement.call, None);
+            };
+            | Types.Tags.Work.Update => {
+              commitWork(commitingFiber, Update.call, None);
+            };
+            | Types.Tags.Work.Delete => {
+              commitWork(commitingFiber, Delete.call, commitingFiber.alternate);
+              commitOnChild := false;
+            };
+            | Types.Tags.Work.Replace => {
+              commitWork(commitingFiber, Delete.call, commitingFiber.alternate);
+              commitWork(commitingFiber, Placement.call, None);
+            };
+            | _ => ();
+          }
 
-        switch (commitingFiber.workTag) {
-          | Types.Tags.Work.Placement => {
-            safelyCommit(commitingFiber, Placement.call, None);
-          };
-          | Types.Tags.Work.Update => {
-            safelyCommit(commitingFiber, Update.call, None);
-          };
-          | Types.Tags.Work.Delete => {
-            safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
-            commitOnChild := false;
-          };
-          | Types.Tags.Work.Replace => {
-            safelyCommit(commitingFiber, Delete.call, commitingFiber.alternate);
-            safelyCommit(commitingFiber, Placement.call, None);
-          };
-          | _ => ();
+          if (commitOnChild^) {
+            call(commitingFiber.child);
+          }
         }
 
         if (commitingFiber.error != None) {
-          Error.call(commitingFiber);
-        } else if (commitOnChild^) {
-          call(commitingFiber.child);
+          let%OptionUnit error = commitingFiber.error;
+          Error.call(commitingFiber, error);
+        } else {
+          try (commitSelfAndChild()) {
+            | error => Error.call(commitingFiber, error);
+          }
         }
+
+        call(commitingFiber.sibling);
 
         call(commitingFiber.sibling);
       };
