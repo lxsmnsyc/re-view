@@ -172,7 +172,7 @@ module Make = (Reconciler: ReconcilerType) => {
       type props('a) = {
         context: t('a),
         value: option('a),
-        children: Types.Element.t,
+        children: Types.Children.t,
       };
 
       let make: Types.Component.t(props('a)) = ({ key, ref }, { context, value, children }) => {
@@ -1213,7 +1213,7 @@ module Make = (Reconciler: ReconcilerType) => {
         };
       }
 
-      ReconcileChildren.call(current, wip, Some([| Some(props.children) |]));
+      ReconcileChildren.call(current, wip, props.children);
     };
 
     let updateErrorBoundary = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {

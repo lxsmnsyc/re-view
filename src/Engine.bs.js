@@ -898,7 +898,7 @@ function Make(Reconciler) {
                     };
                     wip.instance = Caml_option.some(instance);
                   }
-                  return call(current, wip, [props.children]);
+                  return call(current, wip, props.children);
                 }));
   };
   var updateErrorBoundary = function (current, wip) {

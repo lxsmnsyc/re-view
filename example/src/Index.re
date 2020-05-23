@@ -4,8 +4,11 @@
 
 open ReView;
 
+
 let initialImage = "https://images.dog.ceo/breeds/frise-bichon/jh-ezio-3.jpg";
 let finalImage = "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_2984.jpg";
+
+let imageContext = DOM.Context.make("ImageContext", initialImage);
 
 module Image = DOM.Component({
   type props = unit;
@@ -13,13 +16,7 @@ module Image = DOM.Component({
   let name = "Image";
 
   let make = (_, _) => {
-    let (state, setState) = DOM.useState(() => initialImage);
-
-    DOM.useEffect(() => {
-      setState(_ => finalImage);
-
-      None;
-    }, state);
+    let state = DOM.useContext(imageContext);
 
     DOM.Element.make("img", { key: None, ref: None}, {
       attributes: DOM.Element.attributes(
@@ -47,10 +44,10 @@ module ImageGroup = DOM.Component({
   };
 });
 
-module App = DOM.Component({
+module Content = DOM.Component({
   type props = unit;
 
-  let name = "App";
+  let name = "Content";
 
   let make = (_, _) => {
     DOM.Fragment.make({ key: None, ref: None }, {
@@ -58,6 +55,30 @@ module App = DOM.Component({
         ImageGroup.make({ key: None, ref: None }, ()),
         ImageGroup.make({ key: None, ref: None }, ()),
       |],
+    });
+  };
+});
+
+module App = DOM.Component({
+  type props = unit;
+
+  let name = "App";
+
+  let make = (_, _) => {
+    let (state, setState) = DOM.useState(() => initialImage);
+
+    DOM.useEffect(() => {
+      setState(_ => finalImage);
+
+      None;
+    }, state);
+
+    DOM.Context.Provider.make({ key: None, ref: None }, {
+      context: imageContext,
+      value: Some(state),
+      children: Some([|
+        Content.make({ key: None, ref: None }, ()),
+      |]),
     });
   };
 });
