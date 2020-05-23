@@ -7,6 +7,7 @@ let initialImage = "https://images.dog.ceo/breeds/frise-bichon/jh-ezio-3.jpg";
 let finalImage = "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_2984.jpg";
 
 let imageContext = DOM.Context.make("ImageContext", initialImage);
+
 module Image = DOM.Component({
   type props = unit;
 
@@ -25,6 +26,18 @@ module Image = DOM.Component({
   };
 });
 
+module ImageSrc = DOM.Component({
+  type props = unit;
+
+  let name = "ImageSrc";
+
+  let make = (_, _) => {
+    let state = DOM.useContext(imageContext);
+
+    DOM.Text.make("Current source: " ++ state);
+  };
+});
+
 module ImageGroup = DOM.Component({
   type props = unit;
 
@@ -34,6 +47,7 @@ module ImageGroup = DOM.Component({
     DOM.Element.make("div", { key: None, ref: None }, {
       attributes: DOM.Element.attributes(),
       children: Some([|
+        ImageSrc.make({ key: None, ref: None }, ()),
         Image.make({ key: None, ref: None }, ()),
         Image.make({ key: None, ref: None }, ()),
       |]),

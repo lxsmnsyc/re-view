@@ -1406,6 +1406,9 @@ function Make(Reconciler) {
   };
   var call$10 = function (wip) {
     return Let$ReView.OptionUnit.let_(wip, (function (commitingFiber) {
+                  if (commitingFiber.fiberTag === /* Host */1) {
+                    console.log(commitingFiber);
+                  }
                   var commitSelfAndChild = function (param) {
                     var commitOnChild = true;
                     var match = commitingFiber.workTag;

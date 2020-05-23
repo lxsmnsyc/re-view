@@ -900,6 +900,18 @@ module Element = {
   };
 };
 
+module Text = {
+  let make = (value: string) => {
+    DomCore.Host.make({ key: None, ref: None }, {
+      constructor: "text",
+      attributes: Opaque.convert(
+        Element.attributes(~value=value, ()),
+      ),
+      children: None,
+    });
+  };
+};
+
 [@bs.val] external requestAnimationFrame: (float => unit) => unit = "window.requestAnimationFrame";
 [@bs.val] external now: unit => float = "performance.now";
 

@@ -1685,6 +1685,10 @@ module Make = (Reconciler: ReconcilerType) => {
       let rec call = (wip: option(Fiber.t)): unit => {
         let%OptionUnit commitingFiber = wip;
 
+        if (commitingFiber.fiberTag == Types.Tags.Fiber.Host) {
+          Js.log(commitingFiber);
+        }
+
         let commitSelfAndChild = () => {
           let commitOnChild = ref(true);
           switch (commitingFiber.workTag) {

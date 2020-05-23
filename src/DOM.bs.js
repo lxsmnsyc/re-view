@@ -47,6 +47,23 @@ var $$Element = {
   make: make
 };
 
+function make$1(value) {
+  return Curry._2(DomCore.Host.make, {
+              key: undefined,
+              ref: /* None */0
+            }, {
+              constructor: "text",
+              attributes: {
+                value: value
+              },
+              children: undefined
+            });
+}
+
+var $$Text = {
+  make: make$1
+};
+
 function loop(time) {
   Curry._1(DomCore.workLoop, (function (param) {
           return performance.now() - time;
@@ -118,5 +135,6 @@ exports.MemoBasic = MemoBasic;
 exports.Component = Component;
 exports.Memo = Memo;
 exports.$$Element = $$Element;
+exports.$$Text = $$Text;
 exports.loop = loop;
 /* DomCore Not a pure module */

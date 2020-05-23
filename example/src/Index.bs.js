@@ -28,12 +28,26 @@ var $$Image = Curry._1(DOM$ReView.DomCore.Component, {
     });
 
 function make$1(param, param$1) {
+  var state = Curry._1(DOM$ReView.useContext, imageContext);
+  return DOM$ReView.$$Text.make("Current source: " + state);
+}
+
+var ImageSrc = Curry._1(DOM$ReView.DomCore.Component, {
+      make: make$1,
+      name: "ImageSrc"
+    });
+
+function make$2(param, param$1) {
   return DOM$ReView.$$Element.make("div", {
               key: undefined,
               ref: /* None */0
             }, {
               attributes: { },
               children: [
+                Curry._2(ImageSrc.make, {
+                      key: undefined,
+                      ref: /* None */0
+                    }, undefined),
                 Curry._2($$Image.make, {
                       key: undefined,
                       ref: /* None */0
@@ -47,11 +61,11 @@ function make$1(param, param$1) {
 }
 
 var ImageGroup = Curry._1(DOM$ReView.DomCore.Component, {
-      make: make$1,
+      make: make$2,
       name: "ImageGroup"
     });
 
-function make$2(param, param$1) {
+function make$3(param, param$1) {
   return Curry._2(DOM$ReView.DomCore.Fragment.make, {
               key: undefined,
               ref: /* None */0
@@ -70,11 +84,11 @@ function make$2(param, param$1) {
 }
 
 var Content = Curry._1(DOM$ReView.DomCore.Component, {
-      make: make$2,
+      make: make$3,
       name: "Content"
     });
 
-function make$3(param, param$1) {
+function make$4(param, param$1) {
   var match = Curry._1(DOM$ReView.useState, (function (param) {
           return initialImage;
         }));
@@ -100,7 +114,7 @@ function make$3(param, param$1) {
 }
 
 var App = Curry._1(DOM$ReView.DomCore.Component, {
-      make: make$3,
+      make: make$4,
       name: "App"
     });
 
@@ -113,6 +127,7 @@ exports.initialImage = initialImage;
 exports.finalImage = finalImage;
 exports.imageContext = imageContext;
 exports.$$Image = $$Image;
+exports.ImageSrc = ImageSrc;
 exports.ImageGroup = ImageGroup;
 exports.Content = Content;
 exports.App = App;

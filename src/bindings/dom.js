@@ -108,6 +108,9 @@ function commitUpdate(instance, oldProps, newProps, index, fiber) {
   instance[instance] = index.toString();
   if (instance instanceof Element) {
     instance.setAttribute(CUSTOM_ATTR, index.toString());
+  } else {
+    instance.nodeValue = newProps.value;
+    return;
   }
 
   Object.keys(oldProps).forEach((key) => {
