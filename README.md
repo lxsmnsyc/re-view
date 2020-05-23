@@ -7,6 +7,6 @@ Build user interfaces in ReasonML
 - [x] Context API
 - [x] Hooks
 - [ ] Error Boundary
-- [ ] References
+- [X] Reference Capturing
 - [ ] Suspense
-- [ ] Work Loop
+- [X] Work Loop
