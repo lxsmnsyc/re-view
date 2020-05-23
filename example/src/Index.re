@@ -1,15 +1,12 @@
 // Entry point
-
 [@bs.val] external document: Js.t({..}) = "document";
 
 open ReView;
-
 
 let initialImage = "https://images.dog.ceo/breeds/frise-bichon/jh-ezio-3.jpg";
 let finalImage = "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_2984.jpg";
 
 let imageContext = DOM.Context.make("ImageContext", initialImage);
-
 module Image = DOM.Component({
   type props = unit;
 
