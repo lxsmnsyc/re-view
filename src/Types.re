@@ -107,6 +107,7 @@ module Reference = {
 
 module Element = {
   type t = {
+    name: string,
     constructor: option(Opaque.t),
     fiberTag: Tags.Fiber.t,
     key: option(string),
@@ -128,6 +129,8 @@ module type Component = {
   type props;
 
   let make: Component.t(props);
+
+  let name: string;
 };
 
 module Children = {
