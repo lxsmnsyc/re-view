@@ -7,6 +7,9 @@ let initialImage = "https://images.dog.ceo/breeds/frise-bichon/jh-ezio-3.jpg";
 let finalImage = "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_2984.jpg";
 
 let imageContext = DOM.Context.make("ImageContext", initialImage);
+let testContext = DOM.Context.make("TestContext", initialImage);
+
+exception Test;
 
 module Image = DOM.Component({
   type props = unit;
@@ -21,7 +24,7 @@ module Image = DOM.Component({
         ~src=state,
         (),
       ),
-      children: None,
+      children: [||],
     });
   };
 });
@@ -46,11 +49,11 @@ module ImageGroup = DOM.Component({
   let make = (_, _) => {
     DOM.Element.make("div", { key: None, ref: None }, {
       attributes: DOM.Element.attributes(),
-      children: Some([|
+      children: [|
         ImageSrc.make({ key: None, ref: None }, ()),
         Image.make({ key: None, ref: None }, ()),
         Image.make({ key: None, ref: None }, ()),
-      |]),
+      |],
     });
   };
 });
@@ -78,19 +81,32 @@ module App = DOM.Component({
   let make = (_, _) => {
     let (state, setState) = DOM.useState(() => initialImage);
 
-    DOM.useEffect(() => {
+    DOM.useLayoutEffect(() => {
       setState(_ => finalImage);
 
       None;
     }, state);
 
-    DOM.Context.Provider.make({ key: None, ref: None }, {
-      context: imageContext,
-      value: Some(state),
-      children: Some([|
-        Content.make({ key: None, ref: None }, ()),
-      |]),
-    });
+    let (context, setContext) = DOM.useState(() => testContext);
+
+    DOM.ErrorBoundary.make({ key: None, ref: None }, {
+      onError: (value, trace) => {
+        Js.log(value);
+        Js.log(trace);
+
+        setContext(_ => imageContext);
+      },
+      children: [|
+        DOM.Context.Provider.make({ key: None, ref: None }, {
+          context: context,
+          value: Some(state),
+          children: [|
+            Content.make({ key: None, ref: None }, ()),
+          |],
+        }),
+      |],
+    })
+
   };
 });
 

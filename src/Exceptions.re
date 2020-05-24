@@ -66,3 +66,5 @@ exception InvalidHostConstructor;
 
 exception MissingWorkInProgressRoot;
 exception MissingCurrentRoot;
+
+exception Component(exn, array(string));

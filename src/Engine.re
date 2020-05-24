@@ -235,8 +235,8 @@ module Make = (Reconciler: ReconcilerType) => {
 
   module ErrorBoundary = {
     type props = {
-      onError: exn => unit,
-      children: array(option(Types.Element.t)),
+      onError: (exn, array(string)) => unit,
+      children: Types.Children.t,
     };
 
     let make: Types.Component.t(props) = ({ key }, props) => {
@@ -253,7 +253,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
   module Fragment = {
     type props = {
-      children: array(option(Types.Element.t)),
+      children: Types.Children.t,
     };
 
     let make: Types.Component.t(props) = ({ key }, props) => {
@@ -372,36 +372,36 @@ module Make = (Reconciler: ReconcilerType) => {
       next: None,
     };
 
-    let update = () => {
-      switch (root.current) {
-        | Some(current) => {
-          let updateFiber = Fiber.make("Root", Types.Tags.Fiber.Root, current.props);
+    let rootContainer: ref(option(Opaque.t)) = ref(None);
+    let updateScheduled: ref(bool) = ref(false);
 
-          updateFiber.instance = current.instance;
-          updateFiber.alternate = root.current;
-
-          root.wip = Some(updateFiber);
-          root.next = Some(updateFiber);
-        };
-        | None => {
-          raise(Exceptions.MissingCurrentRoot);
-        };
-      }
-    };
-
-    let render = (element: option(Types.Element.t), container: Reconciler.t) => {
-      let props: Root.props = {
-        value: container,
-        children: element,
-      };
-
+    let renderBase = (props: 'a) => {
       let renderFiber = Fiber.make("Root", Types.Tags.Fiber.Root, props);
 
-      renderFiber.instance = Some(Opaque.convert(container));
+      renderFiber.instance = rootContainer^;
       renderFiber.alternate = root.current;
 
       root.wip = Some(renderFiber);
       root.next = Some(renderFiber);
+    };
+
+    let update = () => {
+      renderBase(switch (root.current) {
+        | Some(current) => current.props;
+        | None => switch (root.wip) {
+          | Some(current) => current.props;
+          | None => raise(Exceptions.MissingCurrentRoot);
+        }
+      });
+    };
+
+    let render = (element: option(Types.Element.t), container: Reconciler.t) => {
+      rootContainer := Some(Opaque.convert(container));
+      let props: Root.props = {
+        value: container,
+        children: element,
+      };
+      renderBase(props);
     };
   };
 
@@ -595,7 +595,7 @@ module Make = (Reconciler: ReconcilerType) => {
       }
     };
 
-    let call = (current: option(Fiber.t), wip: Fiber.t, newChildren: Types.Children.t): option(Fiber.t) => {
+    let call = (current: option(Fiber.t), wip: Fiber.t, children: Types.Children.t): option(Fiber.t) => {
       let previousFiber: ref(option(Fiber.t)) = ref(None);
 
       /**
@@ -618,8 +618,6 @@ module Make = (Reconciler: ReconcilerType) => {
        * Perform work to new children
        */
       ignore({
-        let%OptionUnit children = newChildren;
-        
         children |> Array.iteri((index, element: option(Types.Element.t)) => {
           let key: option(string) = switch (element) {
             | Some(el) => el.key;
@@ -884,7 +882,7 @@ module Make = (Reconciler: ReconcilerType) => {
             | Some(actualValue) => Opaque.return(actualValue);
             | None => {
               let callback = () => {
-                Core.update();
+                Core.updateScheduled := true;
               };
 
               dispatch.value = Some(Opaque.convert(callback));
@@ -1007,7 +1005,7 @@ module Make = (Reconciler: ReconcilerType) => {
                 if (newState != actualValue) {
                   state.value = Some(Opaque.convert(newState));
                   wip.shouldUpdate = true;
-                  Core.update();
+                  Core.updateScheduled := true;
                 }
               };
 
@@ -1046,7 +1044,7 @@ module Make = (Reconciler: ReconcilerType) => {
                 if (newState != actualValue) {
                   state.value = Some(Opaque.convert(newState));
                   wip.shouldUpdate = true;
-                  Core.update();
+                  Core.updateScheduled := true;
                 }
               };
 
@@ -1118,7 +1116,7 @@ module Make = (Reconciler: ReconcilerType) => {
       switch (render()) {
         | result => result;
         | exception e => {
-          wip.error = Some(e);
+          wip.error = Some(Exceptions.Component(e, [| |]));
           None;
         };
       }
@@ -1137,7 +1135,7 @@ module Make = (Reconciler: ReconcilerType) => {
       });
 
       if (result != None) {
-        ReconcileChildren.call(current, wip, Some([| result |]));
+        ReconcileChildren.call(current, wip, [| result |]);
       } else {
         None;
       }
@@ -1158,7 +1156,7 @@ module Make = (Reconciler: ReconcilerType) => {
       Hooks.RenderContext.finishRender();
 
       if (result != None) {
-        ReconcileChildren.call(current, wip, Some([| result |]));
+        ReconcileChildren.call(current, wip, [| result |]);
       } else {
         None;
       }
@@ -1185,7 +1183,7 @@ module Make = (Reconciler: ReconcilerType) => {
       });
 
       if (result != None) {
-        ReconcileChildren.call(current, wip, Some([| result |]));
+        ReconcileChildren.call(current, wip, [| result |]);
       } else {
         None;
       }
@@ -1219,13 +1217,13 @@ module Make = (Reconciler: ReconcilerType) => {
     let updateErrorBoundary = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let props: ErrorBoundary.props = Opaque.return(wip.props);
 
-      ReconcileChildren.call(current, wip, Some(props.children));
+      ReconcileChildren.call(current, wip, props.children);
     };
 
     let updateFragment = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let props: Fragment.props = Opaque.return(wip.props);
 
-      ReconcileChildren.call(current, wip, Some(props.children));
+      ReconcileChildren.call(current, wip, props.children);
     };
 
     let updateHost = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
@@ -1260,7 +1258,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
       if (result != None) {
         wip.children = result;
-        ReconcileChildren.call(current, wip, Some([| result |]));
+        ReconcileChildren.call(current, wip, [| result |]);
       } else {
         None;
       }
@@ -1292,7 +1290,7 @@ module Make = (Reconciler: ReconcilerType) => {
             let children = actualCurrent.children;
             wip.children = children;
             actualCurrent.children = None;
-            ReconcileChildren.call(current, wip, Some([| children |]));
+            ReconcileChildren.call(current, wip, [| children |]);
           }
         };
         | None => updateMemoInitial(current, wip);
@@ -1313,7 +1311,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
       if (result != None) {
         wip.children = result;
-        ReconcileChildren.call(current, wip, Some([| result |]));
+        ReconcileChildren.call(current, wip, [| result |]);
       } else {
         None;
       }
@@ -1331,7 +1329,7 @@ module Make = (Reconciler: ReconcilerType) => {
             let children = actualCurrent.children;
             wip.children = children;
             actualCurrent.children = None;
-            ReconcileChildren.call(current, wip, Some([| children |]));
+            ReconcileChildren.call(current, wip, [| children |]);
           }
         };
         | None => updateMemoInitial(current, wip);
@@ -1345,7 +1343,7 @@ module Make = (Reconciler: ReconcilerType) => {
         wip.instance = Some(Opaque.convert(props.value));
       }
 
-      ReconcileChildren.call(current, wip, Some([| props.children |]));
+      ReconcileChildren.call(current, wip, [| props.children |]);
     };
 
     let call = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
@@ -1366,13 +1364,38 @@ module Make = (Reconciler: ReconcilerType) => {
 
   module Commit = {
     module Error = {
-      let call = (wip: Fiber.t, error: exn) => {
+      let raiseToParent = (wip: Fiber.t, error: exn) => {
+        let%OptionOrError parent = (wip.parent, error);
+        parent.error = Some(error);
+      };
+
+      let call = (wip: Fiber.t) => {
+        let%OptionUnit error = wip.error;
         if (wip.fiberTag == Types.Tags.Fiber.ErrorBoundary) {
           let props: ErrorBoundary.props = Opaque.return(wip.props);
 
-          props.onError(error);
+          switch (error) {
+            | Exceptions.Component(value, trace) => {
+              try (props.onError(value, trace)) {
+                | err => raiseToParent(wip, Exceptions.Component(err, trace));
+              }
+            };
+            | value => {
+              let trace = [| wip.name |];
+              try (props.onError(value, trace)) {
+                | err => raiseToParent(wip, Exceptions.Component(err, trace));
+              }
+            };
+          }
         } else {
-          raise(error);
+          switch (error) {
+            | Exceptions.Component(value, trace) => {
+              raiseToParent(wip, Exceptions.Component(value, Array.append(trace, [| wip.identifier |])));
+            }
+            | value => {
+              raiseToParent(wip, Exceptions.Component(value, [| wip.identifier |]));
+            };
+          }
         }
       };
     };
@@ -1634,9 +1657,9 @@ module Make = (Reconciler: ReconcilerType) => {
 
         let rec call = (wip: option(Fiber.t)): unit => {
           let%OptionUnit commitingFiber = wip;
+          let commitOnChild = ref(true);
 
-          let commitSelfAndChild = () => {
-            let commitOnChild = ref(true);
+          let commitSelf = () => {
             switch (commitingFiber.workTag) {
               | Types.Tags.Work.Placement => {
                 commitWork(commitingFiber, Placement.call, None);
@@ -1654,18 +1677,17 @@ module Make = (Reconciler: ReconcilerType) => {
               };
               | _ => ();
             }
-
-            if (commitOnChild^) {
-              call(commitingFiber.child);
-            }
           }
 
+          commitSelf();
+
           if (commitingFiber.error != None) {
-            let%OptionUnit error = commitingFiber.error;
-            Error.call(commitingFiber, error);
-          } else {
-            try (commitSelfAndChild()) {
-              | error => Error.call(commitingFiber, error);
+            Error.call(commitingFiber);
+          } else if (commitOnChild^) {
+            call(commitingFiber.child);
+
+            if (commitingFiber.error != None) {
+              Error.call(commitingFiber);
             }
           }
 
@@ -1684,13 +1706,9 @@ module Make = (Reconciler: ReconcilerType) => {
 
       let rec call = (wip: option(Fiber.t)): unit => {
         let%OptionUnit commitingFiber = wip;
+        let commitOnChild = ref(true);
 
-        if (commitingFiber.fiberTag == Types.Tags.Fiber.Host) {
-          Js.log(commitingFiber);
-        }
-
-        let commitSelfAndChild = () => {
-          let commitOnChild = ref(true);
+        let commitSelf = () => {
           switch (commitingFiber.workTag) {
             | Types.Tags.Work.Placement => {
               commitWork(commitingFiber, Placement.call, None);
@@ -1708,22 +1726,19 @@ module Make = (Reconciler: ReconcilerType) => {
             };
             | _ => ();
           }
-
-          if (commitOnChild^) {
-            call(commitingFiber.child);
-          }
         }
+
+        commitSelf();
 
         if (commitingFiber.error != None) {
-          let%OptionUnit error = commitingFiber.error;
-          Error.call(commitingFiber, error);
-        } else {
-          try (commitSelfAndChild()) {
-            | error => Error.call(commitingFiber, error);
+          Error.call(commitingFiber);
+        } else if (commitOnChild^) {
+          call(commitingFiber.child);
+
+          if (commitingFiber.error != None) {
+            Error.call(commitingFiber);
           }
         }
-
-        call(commitingFiber.sibling);
 
         call(commitingFiber.sibling);
       };
@@ -1731,24 +1746,42 @@ module Make = (Reconciler: ReconcilerType) => {
 
     module Root = {
       let call = () => {
-        ignore({
-          let%OptionUnit wip = Core.root.wip;
-          Work.call(wip.child);
-        });
+        /**
+         * Reset status for schedule update
+         */
+        Core.updateScheduled := false;
+
+        /**
+         * Make sure that we have a wip root
+         */
+        let%OptionOrError wip = (Core.root.wip, Exceptions.MissingWorkInProgressRoot);
+        
+        /**
+         * Commit before mutations
+         */
+        Work.call(wip.child);
+          /**
+         * Detach the current root
+         * and set the current root to the wip root
+         */
         ignore({
           let%OptionUnit current = Core.root.current;
           Fiber.detach(current.alternate);
         });
-        if (Core.root.wip == None) {
-          raise(Exceptions.MissingWorkInProgressRoot);
-        }
+
         Core.root.current = Core.root.wip;
         Core.root.wip = None;
-        ignore({
-          let%OptionUnit current = Core.root.current;
-          Lifecycles.Work.call(current.child);
-        });
-      };
+
+        /**
+         * Commit after mutations
+         */
+        Lifecycles.Work.call(wip.child);
+
+        if (Core.updateScheduled^) {
+          Core.update();
+          Core.updateScheduled := false;
+        }
+      }
     };
   };
 

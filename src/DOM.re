@@ -907,7 +907,7 @@ module Text = {
       attributes: Opaque.convert(
         Element.attributes(~value=value, ()),
       ),
-      children: None,
+      children: [||],
     });
   };
 };

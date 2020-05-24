@@ -2,12 +2,17 @@
 
 var Curry = require("bs-platform/lib/js/curry.js");
 var DOM$ReView = require("re-view/src/DOM.bs.js");
+var Caml_exceptions = require("bs-platform/lib/js/caml_exceptions.js");
 
 var initialImage = "https://images.dog.ceo/breeds/frise-bichon/jh-ezio-3.jpg";
 
 var finalImage = "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_2984.jpg";
 
 var imageContext = Curry._2(DOM$ReView.DomCore.Context.make, "ImageContext", initialImage);
+
+var testContext = Curry._2(DOM$ReView.DomCore.Context.make, "TestContext", initialImage);
+
+var Test = Caml_exceptions.create("Index-ReasonReactExamples.Test");
 
 function make(param, param$1) {
   var state = Curry._1(DOM$ReView.useContext, imageContext);
@@ -18,7 +23,7 @@ function make(param, param$1) {
               attributes: {
                 src: state
               },
-              children: undefined
+              children: []
             });
 }
 
@@ -94,22 +99,38 @@ function make$4(param, param$1) {
         }));
   var setState = match[1];
   var state = match[0];
-  Curry._2(DOM$ReView.useEffect, (function (param) {
+  Curry._2(DOM$ReView.useLayoutEffect, (function (param) {
           Curry._1(setState, (function (param) {
                   return finalImage;
                 }));
           
         }), state);
-  return Curry._2(DOM$ReView.DomCore.Context.Provider.make, {
+  var match$1 = Curry._1(DOM$ReView.useState, (function (param) {
+          return testContext;
+        }));
+  var setContext = match$1[1];
+  return Curry._2(DOM$ReView.DomCore.ErrorBoundary.make, {
               key: undefined,
               ref: /* None */0
             }, {
-              context: imageContext,
-              value: state,
-              children: [Curry._2(Content.make, {
+              onError: (function (value, trace) {
+                  console.log(value);
+                  console.log(trace);
+                  return Curry._1(setContext, (function (param) {
+                                return imageContext;
+                              }));
+                }),
+              children: [Curry._2(DOM$ReView.DomCore.Context.Provider.make, {
                       key: undefined,
                       ref: /* None */0
-                    }, undefined)]
+                    }, {
+                      context: match$1[0],
+                      value: state,
+                      children: [Curry._2(Content.make, {
+                              key: undefined,
+                              ref: /* None */0
+                            }, undefined)]
+                    })]
             });
 }
 
@@ -126,6 +147,8 @@ Curry._2(DOM$ReView.render, Curry._2(App.make, {
 exports.initialImage = initialImage;
 exports.finalImage = finalImage;
 exports.imageContext = imageContext;
+exports.testContext = testContext;
+exports.Test = Test;
 exports.$$Image = $$Image;
 exports.ImageSrc = ImageSrc;
 exports.ImageGroup = ImageGroup;

@@ -56,7 +56,7 @@ function make$1(value) {
               attributes: {
                 value: value
               },
-              children: undefined
+              children: []
             });
 }
 

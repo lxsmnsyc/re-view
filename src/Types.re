@@ -134,5 +134,5 @@ module type Component = {
 };
 
 module Children = {
-  type t = option(array(option(Element.t)));
+  type t = array(option(Element.t));
 };

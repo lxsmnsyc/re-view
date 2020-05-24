@@ -264,32 +264,47 @@ function Make(Reconciler) {
     wip: undefined,
     next: undefined
   };
-  var update = function (param) {
-    var current = root.current;
-    if (current !== undefined) {
-      var updateFiber = make("Root", /* Root */2, current.props);
-      updateFiber.instance = current.instance;
-      updateFiber.alternate = root.current;
-      root.wip = updateFiber;
-      root.next = updateFiber;
-      return ;
-    }
-    throw Exceptions$ReView.MissingCurrentRoot;
+  var rootContainer = {
+    contents: undefined
   };
-  var render = function (element, container) {
-    var props = {
-      value: container,
-      children: element
-    };
+  var updateScheduled = {
+    contents: false
+  };
+  var renderBase = function (props) {
     var renderFiber = make("Root", /* Root */2, props);
-    renderFiber.instance = Caml_option.some(container);
+    renderFiber.instance = rootContainer.contents;
     renderFiber.alternate = root.current;
     root.wip = renderFiber;
     root.next = renderFiber;
     
   };
+  var update = function (param) {
+    var current = root.current;
+    var tmp;
+    if (current !== undefined) {
+      tmp = current.props;
+    } else {
+      var current$1 = root.wip;
+      if (current$1 !== undefined) {
+        tmp = current$1.props;
+      } else {
+        throw Exceptions$ReView.MissingCurrentRoot;
+      }
+    }
+    return renderBase(tmp);
+  };
+  var render = function (element, container) {
+    rootContainer.contents = Caml_option.some(container);
+    return renderBase({
+                value: container,
+                children: element
+              });
+  };
   var Core = {
     root: root,
+    rootContainer: rootContainer,
+    updateScheduled: updateScheduled,
+    renderBase: renderBase,
     update: update,
     render: render
   };
@@ -421,7 +436,7 @@ function Make(Reconciler) {
                   }
                 }));
   };
-  var call = function (current, wip, newChildren) {
+  var call = function (current, wip, children) {
     var previousFiber = {
       contents: undefined
     };
@@ -438,17 +453,15 @@ function Make(Reconciler) {
       
     };
     var marked = Opaque$ReView.$$Set.make(undefined);
-    Let$ReView.OptionUnit.let_(newChildren, (function (children) {
-            return $$Array.iteri((function (index, element) {
-                          var key = element !== undefined ? element.key : undefined;
-                          var oldFiber = getMatchingFiber(current, index, key);
-                          var newFiber = updateFiber(wip, oldFiber, element, index, key);
-                          Let$ReView.OptionUnit.let_(oldFiber, (function (actualFiber) {
-                                  return Opaque$ReView.$$Set.add(marked, actualFiber);
-                                }));
-                          return linkFiber(newFiber, element !== undefined);
-                        }), children);
-          }));
+    $$Array.iteri((function (index, element) {
+            var key = element !== undefined ? element.key : undefined;
+            var oldFiber = getMatchingFiber(current, index, key);
+            var newFiber = updateFiber(wip, oldFiber, element, index, key);
+            Let$ReView.OptionUnit.let_(oldFiber, (function (actualFiber) {
+                    return Opaque$ReView.$$Set.add(marked, actualFiber);
+                  }));
+            return linkFiber(newFiber, element !== undefined);
+          }), children);
     Let$ReView.OptionUnit.let_(current, (function (actualCurrent) {
             var iterateFibers = function (oldFiber) {
               return Let$ReView.OptionUnit.let_(oldFiber, (function (iteratedFiber) {
@@ -611,7 +624,8 @@ function Make(Reconciler) {
       return Caml_option.valFromOption(actualValue);
     }
     var callback = function (param) {
-      return update(undefined);
+      updateScheduled.contents = true;
+      
     };
     dispatch.value = Caml_option.some(callback);
     return callback;
@@ -692,7 +706,8 @@ function Make(Reconciler) {
                     if (Caml_obj.caml_notequal(newState, opaqueValue)) {
                       state.value = Caml_option.some(newState);
                       wip.shouldUpdate = true;
-                      return update(undefined);
+                      updateScheduled.contents = true;
+                      return ;
                     }
                     
                   }));
@@ -726,7 +741,8 @@ function Make(Reconciler) {
                     if (Caml_obj.caml_notequal(newState, opaqueValue)) {
                       state.value = Caml_option.some(newState);
                       wip.shouldUpdate = true;
-                      return update(undefined);
+                      updateScheduled.contents = true;
+                      return ;
                     }
                     
                   }));
@@ -810,7 +826,11 @@ function Make(Reconciler) {
     }
     catch (raw_e){
       var e = Caml_js_exceptions.internalToOCamlException(raw_e);
-      wip.error = e;
+      wip.error = [
+        Exceptions$ReView.Component,
+        e,
+        []
+      ];
       return ;
     }
   };
@@ -1054,14 +1074,64 @@ function Make(Reconciler) {
     updateRoot: updateRoot,
     call: call$1
   };
-  var call$2 = function (wip, error) {
-    if (wip.fiberTag === /* ErrorBoundary */7) {
-      var props = wip.props;
-      return Curry._1(props.onError, error);
-    }
-    throw error;
+  var raiseToParent = function (wip, error) {
+    return Let$ReView.OptionOrError.let_(/* tuple */[
+                wip.parent,
+                error
+              ], (function (parent) {
+                  parent.error = error;
+                  
+                }));
+  };
+  var call$2 = function (wip) {
+    return Let$ReView.OptionUnit.let_(wip.error, (function (error) {
+                  if (wip.fiberTag !== /* ErrorBoundary */7) {
+                    if (error[0] === Exceptions$ReView.Component) {
+                      return raiseToParent(wip, [
+                                  Exceptions$ReView.Component,
+                                  error[1],
+                                  $$Array.append(error[2], [wip.identifier])
+                                ]);
+                    } else {
+                      return raiseToParent(wip, [
+                                  Exceptions$ReView.Component,
+                                  error,
+                                  [wip.identifier]
+                                ]);
+                    }
+                  }
+                  var props = wip.props;
+                  if (error[0] === Exceptions$ReView.Component) {
+                    var trace = error[2];
+                    try {
+                      return Curry._2(props.onError, error[1], trace);
+                    }
+                    catch (raw_err){
+                      var err = Caml_js_exceptions.internalToOCamlException(raw_err);
+                      return raiseToParent(wip, [
+                                  Exceptions$ReView.Component,
+                                  err,
+                                  trace
+                                ]);
+                    }
+                  } else {
+                    var trace$1 = [wip.name];
+                    try {
+                      return Curry._2(props.onError, error, trace$1);
+                    }
+                    catch (raw_err$1){
+                      var err$1 = Caml_js_exceptions.internalToOCamlException(raw_err$1);
+                      return raiseToParent(wip, [
+                                  Exceptions$ReView.Component,
+                                  err$1,
+                                  trace$1
+                                ]);
+                    }
+                  }
+                }));
   };
   var $$Error = {
+    raiseToParent: raiseToParent,
     call: call$2
   };
   var withHost = function (wip) {
@@ -1344,45 +1414,37 @@ function Make(Reconciler) {
   };
   var call$9 = function (wip) {
     return Let$ReView.OptionUnit.let_(wip, (function (commitingFiber) {
-                  var commitSelfAndChild = function (param) {
-                    var commitOnChild = true;
+                  var commitOnChild = {
+                    contents: true
+                  };
+                  var commitSelf = function (param) {
                     var match = commitingFiber.workTag;
                     switch (match) {
                       case /* None */0 :
-                          break;
+                          return ;
                       case /* Placement */1 :
-                          commitWork(commitingFiber, call$6, undefined);
-                          break;
+                          return commitWork(commitingFiber, call$6, undefined);
                       case /* Update */2 :
-                          commitWork(commitingFiber, call$7, undefined);
-                          break;
+                          return commitWork(commitingFiber, call$7, undefined);
                       case /* Delete */3 :
                           commitWork(commitingFiber, call$8, commitingFiber.alternate);
-                          commitOnChild = false;
-                          break;
+                          commitOnChild.contents = false;
+                          return ;
                       case /* Replace */4 :
                           commitWork(commitingFiber, call$8, commitingFiber.alternate);
-                          commitWork(commitingFiber, call$6, undefined);
-                          break;
+                          return commitWork(commitingFiber, call$6, undefined);
                       
                     }
-                    if (commitOnChild) {
-                      return call$9(commitingFiber.child);
+                  };
+                  commitSelf(undefined);
+                  if (commitingFiber.error !== undefined) {
+                    call$2(commitingFiber);
+                  } else if (commitOnChild.contents) {
+                    call$9(commitingFiber.child);
+                    if (commitingFiber.error !== undefined) {
+                      call$2(commitingFiber);
                     }
                     
-                  };
-                  if (commitingFiber.error !== undefined) {
-                    Let$ReView.OptionUnit.let_(commitingFiber.error, (function (error) {
-                            return call$2(commitingFiber, error);
-                          }));
-                  } else {
-                    try {
-                      commitSelfAndChild(undefined);
-                    }
-                    catch (raw_error){
-                      var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-                      call$2(commitingFiber, error);
-                    }
                   }
                   return call$9(commitingFiber.sibling);
                 }));
@@ -1406,50 +1468,38 @@ function Make(Reconciler) {
   };
   var call$10 = function (wip) {
     return Let$ReView.OptionUnit.let_(wip, (function (commitingFiber) {
-                  if (commitingFiber.fiberTag === /* Host */1) {
-                    console.log(commitingFiber);
-                  }
-                  var commitSelfAndChild = function (param) {
-                    var commitOnChild = true;
+                  var commitOnChild = {
+                    contents: true
+                  };
+                  var commitSelf = function (param) {
                     var match = commitingFiber.workTag;
                     switch (match) {
                       case /* None */0 :
-                          break;
+                          return ;
                       case /* Placement */1 :
-                          commitWork$1(commitingFiber, call$3, undefined);
-                          break;
+                          return commitWork$1(commitingFiber, call$3, undefined);
                       case /* Update */2 :
-                          commitWork$1(commitingFiber, call$4, undefined);
-                          break;
+                          return commitWork$1(commitingFiber, call$4, undefined);
                       case /* Delete */3 :
                           commitWork$1(commitingFiber, call$5, commitingFiber.alternate);
-                          commitOnChild = false;
-                          break;
+                          commitOnChild.contents = false;
+                          return ;
                       case /* Replace */4 :
                           commitWork$1(commitingFiber, call$5, commitingFiber.alternate);
-                          commitWork$1(commitingFiber, call$3, undefined);
-                          break;
+                          return commitWork$1(commitingFiber, call$3, undefined);
                       
                     }
-                    if (commitOnChild) {
-                      return call$10(commitingFiber.child);
+                  };
+                  commitSelf(undefined);
+                  if (commitingFiber.error !== undefined) {
+                    call$2(commitingFiber);
+                  } else if (commitOnChild.contents) {
+                    call$10(commitingFiber.child);
+                    if (commitingFiber.error !== undefined) {
+                      call$2(commitingFiber);
                     }
                     
-                  };
-                  if (commitingFiber.error !== undefined) {
-                    Let$ReView.OptionUnit.let_(commitingFiber.error, (function (error) {
-                            return call$2(commitingFiber, error);
-                          }));
-                  } else {
-                    try {
-                      commitSelfAndChild(undefined);
-                    }
-                    catch (raw_error){
-                      var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-                      call$2(commitingFiber, error);
-                    }
                   }
-                  call$10(commitingFiber.sibling);
                   return call$10(commitingFiber.sibling);
                 }));
   };
@@ -1458,21 +1508,25 @@ function Make(Reconciler) {
     call: call$10
   };
   var call$11 = function (param) {
-    Let$ReView.OptionUnit.let_(root.wip, (function (wip) {
-            return call$10(wip.child);
-          }));
-    Let$ReView.OptionUnit.let_(root.current, (function (current) {
-            return detach(current.alternate);
-          }));
-    if (root.wip === undefined) {
-      throw Exceptions$ReView.MissingWorkInProgressRoot;
-    }
-    root.current = root.wip;
-    root.wip = undefined;
-    Let$ReView.OptionUnit.let_(root.current, (function (current) {
-            return call$9(current.child);
-          }));
-    
+    updateScheduled.contents = false;
+    return Let$ReView.OptionOrError.let_(/* tuple */[
+                root.wip,
+                Exceptions$ReView.MissingWorkInProgressRoot
+              ], (function (wip) {
+                  call$10(wip.child);
+                  Let$ReView.OptionUnit.let_(root.current, (function (current) {
+                          return detach(current.alternate);
+                        }));
+                  root.current = root.wip;
+                  root.wip = undefined;
+                  call$9(wip.child);
+                  if (updateScheduled.contents) {
+                    update(undefined);
+                    updateScheduled.contents = false;
+                    return ;
+                  }
+                  
+                }));
   };
   var Root$1 = {
     call: call$11
