@@ -1095,17 +1095,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
       module Identifier = {
         let use = (): string => {
-          let wip = RenderContext.getCurrentFiber();
-          let state = RenderContext.make(Types.Tags.Hook.Identifier);
-
-          switch (state.value) {
-            | Some(value) => Opaque.return(value);
-            | None => {
-              let value = wip.identifier;
-              state.value = Some(Opaque.convert(value));
-              value;
-            };
-          }
+          RenderContext.getCurrentFiber().identifier;
         };
       };
     };
@@ -1144,7 +1134,7 @@ module Make = (Reconciler: ReconcilerType) => {
     let updateComponent = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       Hooks.RenderContext.render(current, wip);
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingBasicComponentConstructor);
+        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingComponentConstructor);
 
         let render: Types.Component.t('props) = Opaque.return(constructor);
         let props: 'props = Opaque.return(wip.props);
@@ -1245,7 +1235,7 @@ module Make = (Reconciler: ReconcilerType) => {
     let updateMemoInitial = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       Hooks.RenderContext.render(current, wip);
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingBasicComponentConstructor);
+        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingMemoComponentConstructor);
 
         let render: Types.Component.t('props) = Opaque.return(constructor);
         let props: 'props = Opaque.return(wip.props);
@@ -1284,7 +1274,7 @@ module Make = (Reconciler: ReconcilerType) => {
           let currentProps: 'propsA = Opaque.return(actualCurrent.props);
           let wipProps: 'propsB = Opaque.return(wip.props);
 
-          if (shouldUpdate^ || (wipProps != currentProps)) {
+          if (shouldUpdate^ || (wipProps != currentProps) || actualCurrent.children == None) {
             updateMemoInitial(current, wip);
           } else {
             let children = actualCurrent.children;
@@ -1299,7 +1289,7 @@ module Make = (Reconciler: ReconcilerType) => {
 
     let updateMemoBasicInitial = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingBasicComponentConstructor);
+        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingMemoBasicComponentConstructor);
 
         let render: Types.Component.t('props) = Opaque.return(constructor);
         let props: 'props = Opaque.return(wip.props);
@@ -1323,7 +1313,7 @@ module Make = (Reconciler: ReconcilerType) => {
           let currentProps: 'propsA = Opaque.return(actualCurrent.props);
           let wipProps: 'propsB = Opaque.return(wip.props);
 
-          if (wipProps != currentProps) {
+          if (wipProps != currentProps || actualCurrent.children == None) {
             updateMemoInitial(current, wip);
           } else {
             let children = actualCurrent.children;

@@ -11,7 +11,7 @@ let testContext = DOM.Context.make("TestContext", initialImage);
 
 exception Test;
 
-module Image = DOM.Component({
+module Image = DOM.Memo({
   type props = unit;
 
   let name = "Image";
@@ -29,7 +29,7 @@ module Image = DOM.Component({
   };
 });
 
-module ImageSrc = DOM.Component({
+module ImageSrc = DOM.Memo({
   type props = unit;
 
   let name = "ImageSrc";
@@ -41,7 +41,7 @@ module ImageSrc = DOM.Component({
   };
 });
 
-module ImageGroup = DOM.Component({
+module ImageGroup = DOM.Memo({
   type props = unit;
 
   let name = "ImageGroup";
@@ -58,7 +58,7 @@ module ImageGroup = DOM.Component({
   };
 });
 
-module Content = DOM.Component({
+module Content = DOM.Memo({
   type props = unit;
 
   let name = "Content";
@@ -73,7 +73,7 @@ module Content = DOM.Component({
   };
 });
 
-module App = DOM.Component({
+module App = DOM.Memo({
   type props = unit;
 
   let name = "App";

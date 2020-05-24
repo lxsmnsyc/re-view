@@ -788,15 +788,7 @@ function Make(Reconciler) {
     use: use$10
   };
   var use$11 = function (param) {
-    var wip = getCurrentFiber(undefined);
-    var state = make$7(/* Identifier */14);
-    var value = state.value;
-    if (value !== undefined) {
-      return Caml_option.valFromOption(value);
-    }
-    var value$1 = wip.identifier;
-    state.value = Caml_option.some(value$1);
-    return value$1;
+    return getCurrentFiber(undefined).identifier;
   };
   var Identifier = {
     use: use$11
@@ -857,7 +849,7 @@ function Make(Reconciler) {
     var result = safelyRender(wip, (function (param) {
             return Let$ReView.OptionOrError.let_(/* tuple */[
                         wip.constructor,
-                        Exceptions$ReView.MissingBasicComponentConstructor
+                        Exceptions$ReView.MissingComponentConstructor
                       ], (function (constructor) {
                           var props = wip.props;
                           return Curry._2(constructor, {
@@ -948,7 +940,7 @@ function Make(Reconciler) {
     var result = safelyRender(wip, (function (param) {
             return Let$ReView.OptionOrError.let_(/* tuple */[
                         wip.constructor,
-                        Exceptions$ReView.MissingBasicComponentConstructor
+                        Exceptions$ReView.MissingMemoComponentConstructor
                       ], (function (constructor) {
                           var props = wip.props;
                           return Curry._2(constructor, {
@@ -984,7 +976,7 @@ function Make(Reconciler) {
     }
     var currentProps = current.props;
     var wipProps = wip.props;
-    if (shouldUpdate.contents || Caml_obj.caml_notequal(wipProps, currentProps)) {
+    if (shouldUpdate.contents || Caml_obj.caml_notequal(wipProps, currentProps) || current.children === undefined) {
       return updateMemoInitial(current, wip);
     }
     var children = current.children;
@@ -996,7 +988,7 @@ function Make(Reconciler) {
     var result = safelyRender(wip, (function (param) {
             return Let$ReView.OptionOrError.let_(/* tuple */[
                         wip.constructor,
-                        Exceptions$ReView.MissingBasicComponentConstructor
+                        Exceptions$ReView.MissingMemoBasicComponentConstructor
                       ], (function (constructor) {
                           var props = wip.props;
                           return Curry._2(constructor, {
@@ -1017,7 +1009,7 @@ function Make(Reconciler) {
     }
     var currentProps = current.props;
     var wipProps = wip.props;
-    if (Caml_obj.caml_notequal(wipProps, currentProps)) {
+    if (Caml_obj.caml_notequal(wipProps, currentProps) || current.children === undefined) {
       return updateMemoInitial(current, wip);
     }
     var children = current.children;

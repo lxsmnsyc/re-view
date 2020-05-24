@@ -27,7 +27,7 @@ function make(param, param$1) {
             });
 }
 
-var $$Image = Curry._1(DOM$ReView.DomCore.Component, {
+var $$Image = Curry._1(DOM$ReView.DomCore.Memo, {
       make: make,
       name: "Image"
     });
@@ -37,7 +37,7 @@ function make$1(param, param$1) {
   return DOM$ReView.$$Text.make("Current source: " + state);
 }
 
-var ImageSrc = Curry._1(DOM$ReView.DomCore.Component, {
+var ImageSrc = Curry._1(DOM$ReView.DomCore.Memo, {
       make: make$1,
       name: "ImageSrc"
     });
@@ -65,7 +65,7 @@ function make$2(param, param$1) {
             });
 }
 
-var ImageGroup = Curry._1(DOM$ReView.DomCore.Component, {
+var ImageGroup = Curry._1(DOM$ReView.DomCore.Memo, {
       make: make$2,
       name: "ImageGroup"
     });
@@ -88,7 +88,7 @@ function make$3(param, param$1) {
             });
 }
 
-var Content = Curry._1(DOM$ReView.DomCore.Component, {
+var Content = Curry._1(DOM$ReView.DomCore.Memo, {
       make: make$3,
       name: "Content"
     });
@@ -134,7 +134,7 @@ function make$4(param, param$1) {
             });
 }
 
-var App = Curry._1(DOM$ReView.DomCore.Component, {
+var App = Curry._1(DOM$ReView.DomCore.Memo, {
       make: make$4,
       name: "App"
     });

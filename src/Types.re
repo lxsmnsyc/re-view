@@ -92,7 +92,6 @@ module Tags = {
       | ReducerDispatch
       | Mutable
       | Reference
-      | Identifier
     ;
   };
 };
