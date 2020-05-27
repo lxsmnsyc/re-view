@@ -27,19 +27,14 @@ var OptionUnit = {
   let_: let_$1
 };
 
-function let_$2(param, mapper) {
-  var value = param[0];
+function $pipe$pipe$great(value, error) {
   if (value !== undefined) {
-    return Curry._1(mapper, Caml_option.valFromOption(value));
+    return Caml_option.valFromOption(value);
   }
-  throw param[1];
+  throw error;
 }
-
-var OptionOrError = {
-  let_: let_$2
-};
 
 exports.$$Option = $$Option;
 exports.OptionUnit = OptionUnit;
-exports.OptionOrError = OptionOrError;
+exports.$pipe$pipe$great = $pipe$pipe$great;
 /* No side effect */

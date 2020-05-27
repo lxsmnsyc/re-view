@@ -44,11 +44,9 @@ module OptionUnit = {
   };
 };
 
-module OptionOrError = {
-  let let_ = ((value, error): (option('a), exn), mapper: 'a => 'b): 'b => {
-    switch (value) {
-      | Some(actual) => mapper(actual);
-      | None => raise(error);
-    }
-  };
+let (||>) = (value: option('a), error: exn): 'a => {
+  switch (value) {
+    | Some(actual) => actual;
+    | None => raise(error);
+  }
 };

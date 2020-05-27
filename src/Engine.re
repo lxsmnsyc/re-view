@@ -32,7 +32,16 @@ open Let;
  * for the given Reconciler type module.
  */
 module Make = (Reconciler: Types.Reconciler) => {
+  /**
+   * A Fiber represents a working node and an individual
+   * virtual DOM node.
+   * 
+   * @internal
+   */
   module Fiber = {
+    /**
+     * Tracks the index of the created fibers.
+     */
     let index = ref(0);
 
     type t = {
@@ -116,7 +125,7 @@ module Make = (Reconciler: Types.Reconciler) => {
       instance: None,
       map: Opaque.Map.make(),
       hooks: Opaque.Array.make(),
-      ref: Types.Reference.None,
+      ref: None,
       dependencies: Opaque.Set.make(),
       shouldUpdate: false,
       children: None,
@@ -152,6 +161,9 @@ module Make = (Reconciler: Types.Reconciler) => {
       });
     };
 
+    /**
+     * Generates an index for a given fiber.
+     */
     let createIndex = (): int => {
       let currentIndex = index^ + 1;
       index := currentIndex;
@@ -183,6 +195,8 @@ module Make = (Reconciler: Types.Reconciler) => {
     /**
      * Represents the internal instance constructed from the
      * Context instance.
+     * 
+     * @internal
      */
     module Instance = {
       type t('a) = {
@@ -204,9 +218,11 @@ module Make = (Reconciler: Types.Reconciler) => {
       };
 
       let make: Types.Component.t(props('a)) = ({ key, ref }, { context, value, children }) => {
-        let actualValue = switch (value) {
-          | Some(actual) => actual;
-          | None => context.defaultValue;
+        let actualValue = {
+          switch (value) {
+            | Some(actual) => actual;
+            | None => context.defaultValue;
+          }
         };
 
         Some({
@@ -224,6 +240,10 @@ module Make = (Reconciler: Types.Reconciler) => {
       };
     };
 
+    /**
+     * A Consumer is a kind of component that receives the injected value
+     * of the given Context instance.
+     */
     module Consumer = {
       type props('a) = {
         context: t('a),
@@ -245,21 +265,48 @@ module Make = (Reconciler: Types.Reconciler) => {
       };
     };
 
-
+    /**
+     * Attempts to read the nearest Context instance from the ancestor
+     * tree, returning the internal instance of that Context.
+     */
     let rec read = (wip: Fiber.t, context: t('a)): Instance.t('a) => {
-      let%OptionOrError { parent, fiberTag, props, instance } = (wip.parent, Exceptions.MissingContext);
+      /**
+       * Attempt to get the parent if it is a provider, raising an error
+       * if the parent is missing.
+       */
+      let parent = wip.parent ||> Exceptions.MissingContext;
 
-      let actualProps: Provider.props('a) = Opaque.transform(props);
-
-      if (fiberTag == Types.Tags.Fiber.ContextProvider && actualProps.context == context) {
-        let%OptionOrError actualInstance = (instance, Exceptions.MissingContext);
-        Opaque.transform(actualInstance);
+      /**
+       * Check if the parent is a Context.Provider instance
+       */
+      if (parent.fiberTag == Types.Tags.Fiber.ContextProvider) {
+        /**
+         * Get the props
+         */
+        let actualProps: Provider.props('a) = Opaque.transform(parent.props);
+        /**
+         * Check if the context prop is the same as the Context
+         * instance we are looking
+         */
+        if (actualProps.context == context) {
+          /**
+           * Attempt to extract and return the instance
+           */
+          let instance = parent.instance ||> Exceptions.MissingContext;
+          Opaque.transform(instance);
+        } else {
+          read(parent, context);
+        }
       } else {
-        let%OptionOrError actualParent = (parent, Exceptions.MissingContext);
-        read(actualParent, context);
+        read(parent, context);
       }
     };
   };
+
+  /**
+   * An ErrorBoundary is a kind of component that propagates
+   * the error received while rendering the child components.
+   */
 
   module ErrorBoundary = {
     type props = {
@@ -279,6 +326,10 @@ module Make = (Reconciler: Types.Reconciler) => {
     };
   };
 
+  /**
+   * A Fragment is a kind of component that allows
+   * a component to return multiple components.
+   */
   module Fragment = {
     type props = {
       children: Types.Children.t,
@@ -723,7 +774,7 @@ module Make = (Reconciler: Types.Reconciler) => {
       };
 
       let getCurrentFiber = (): Fiber.t => {
-        let%OptionOrError currentFiber = (hookFiber^, Exceptions.OutOfContextHookCall);
+        let currentFiber = hookFiber^ ||> Exceptions.OutOfContextHookCall;
         currentFiber;
       };
 
@@ -1086,24 +1137,6 @@ module Make = (Reconciler: Types.Reconciler) => {
       };
 
       /**
-       * Creates a Reference instance.
-       */
-      module Reference = {
-        let use = (initialValue: 'a): Types.Reference.t('a) => {
-          let state = RenderContext.make(Types.Tags.Hook.Reference);
-
-          switch (state.value) {
-            | Some(value) => Opaque.transform(value);
-            | None => {
-              let value = Types.Reference.Mutable(ref(Some(initialValue)));
-              state.value = Some(Opaque.transform(value));
-              value;
-            };
-          }
-        };
-      };
-
-      /**
        * Creates a Mutable
        */
       module Mutable = {
@@ -1142,7 +1175,7 @@ module Make = (Reconciler: Types.Reconciler) => {
 
     let updateBasic = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingBasicComponentConstructor);
+        let constructor = wip.constructor ||> Exceptions.MissingBasicComponentConstructor;
 
         let render: Types.Component.t('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1162,7 +1195,7 @@ module Make = (Reconciler: Types.Reconciler) => {
     let updateComponent = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       Hooks.RenderContext.render(current, wip);
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingComponentConstructor);
+        let constructor = wip.constructor ||> Exceptions.MissingComponentConstructor;
 
         let render: Types.Component.t('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1209,23 +1242,24 @@ module Make = (Reconciler: Types.Reconciler) => {
 
     let updateContextProvider = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let props: Context.Provider.props('a) = Opaque.transform(wip.props);
-      let%OptionOrError actualValue = (props.value, Exceptions.DesyncContextValue);
+      let value = props.value ||> Exceptions.DesyncContextValue;
 
       switch (wip.instance) {
         | None => {
           let instance: Context.Instance.t('a) = {
-            value: actualValue,
+            value,
             shouldUpdate: true,
           };
           wip.instance = Some(Opaque.transform(instance));
         };
         | Some(actualInstance) => {
           let instance: Context.Instance.t('a) = Opaque.transform(actualInstance);
-          let%OptionOrError actualCurrent = (current, Exceptions.UnboundContextInstance);
-          let%OptionOrError prevOpaqueInstance = (actualCurrent.instance, Exceptions.UnboundContextInstance);
-          let prevInstance: Context.Instance.t('a) = Opaque.transform(prevOpaqueInstance);
-          instance.shouldUpdate = actualValue != prevInstance.value;
-          instance.value = actualValue;
+          let actualCurrent = current ||> Exceptions.UnboundContextInstance;
+          let prevInstance: Context.Instance.t('a) = Opaque.transform(
+            actualCurrent.instance ||> Exceptions.UnboundContextInstance
+          );
+          instance.shouldUpdate = value != prevInstance.value;
+          instance.value = value;
         };
       }
 
@@ -1247,7 +1281,7 @@ module Make = (Reconciler: Types.Reconciler) => {
     let updateHost = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let props: Host.props = Opaque.transform(wip.props);
       if (wip.instance == None) {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.InvalidHostConstructor);
+        let constructor = wip.constructor ||> Exceptions.InvalidHostConstructor;
         let stringConstructor: string = Opaque.transform(constructor);
         let instance = Reconciler.createInstance(
           stringConstructor,
@@ -1263,7 +1297,7 @@ module Make = (Reconciler: Types.Reconciler) => {
     let updateMemoInitial = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       Hooks.RenderContext.render(current, wip);
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingMemoComponentConstructor);
+        let constructor = wip.constructor ||> Exceptions.MissingMemoComponentConstructor;
 
         let render: Types.Component.t('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1317,7 +1351,7 @@ module Make = (Reconciler: Types.Reconciler) => {
 
     let updateMemoBasicInitial = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let%OptionOrError constructor = (wip.constructor, Exceptions.MissingMemoBasicComponentConstructor);
+        let constructor = wip.constructor ||> Exceptions.MissingMemoBasicComponentConstructor;
 
         let render: Types.Component.t('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1383,8 +1417,7 @@ module Make = (Reconciler: Types.Reconciler) => {
   module Commit = {
     module Error = {
       let raiseToParent = (wip: Fiber.t, error: exn) => {
-        let%OptionOrError parent = (wip.parent, error);
-        parent.error = Some(error);
+        (wip.parent ||> error).error = Some(error);
       };
 
       let call = (wip: Fiber.t) => {
@@ -1431,11 +1464,9 @@ module Make = (Reconciler: Types.Reconciler) => {
           wip,
         );
 
-        switch (wip.ref) {
-          | Types.Reference.None => ();
-          | Types.Reference.Mutable(pointer) => pointer := Some(Opaque.transform(childInstance));
-          | Types.Reference.Callable(pointer) => pointer(Opaque.transform(childInstance));
-        }
+        let%OptionUnit ref = wip.ref;
+        
+        ref(Opaque.transform(childInstance));
       };
 
       type tuple = Hooks.Functions.LayoutEffect.slot;
@@ -1526,11 +1557,6 @@ module Make = (Reconciler: Types.Reconciler) => {
           Utils.getInstanceIndex(parent, wip),
           wip,
         );
-
-        switch (wip.ref) {
-          | Types.Reference.Mutable(pointer) => pointer := None;
-          | _ => ();
-        }
       };
 
       type tuple = Hooks.Functions.LayoutEffect.slot;
@@ -1772,7 +1798,7 @@ module Make = (Reconciler: Types.Reconciler) => {
         /**
          * Make sure that we have a wip root
          */
-        let%OptionOrError wip = (Core.root.wip, Exceptions.MissingWorkInProgressRoot);
+        let wip = Core.root.wip ||> Exceptions.MissingWorkInProgressRoot;
         
         /**
          * Commit before mutations
@@ -1824,8 +1850,6 @@ module Make = (Reconciler: Types.Reconciler) => {
     }
   }
 
-  exception Test;
-
   let workLoop = (deadline: unit => float) => {
     let shouldYield = ref(false);
 
@@ -1864,6 +1888,5 @@ module Make = (Reconciler: Types.Reconciler) => {
   let useMemo = Hooks.Functions.Memo.use;
   let useMutable = Hooks.Functions.Mutable.use;
   let useReducer = Hooks.Functions.Reducer.use;
-  let useReference = Hooks.Functions.Reference.use;
   let useState = Hooks.Functions.State.use;
 };

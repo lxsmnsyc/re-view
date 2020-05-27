@@ -97,11 +97,7 @@ module Tags = {
 };
 
 module Reference = {
-  type t('a) =
-    | None
-    | Mutable(ref(option('a)))
-    | Callable('a => unit)
-  ;
+  type t('a) = option('a => unit);
 };
 
 module Element = {

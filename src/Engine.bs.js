@@ -2,14 +2,12 @@
 'use strict';
 
 var $$Array = require("bs-platform/lib/js/array.js");
-var Block = require("bs-platform/lib/js/block.js");
 var Curry = require("bs-platform/lib/js/curry.js");
 var Caml_obj = require("bs-platform/lib/js/caml_obj.js");
 var Let$ReView = require("./Let.bs.js");
 var Caml_option = require("bs-platform/lib/js/caml_option.js");
 var Types$ReView = require("./Types.bs.js");
 var Opaque$ReView = require("./Opaque.bs.js");
-var Caml_exceptions = require("bs-platform/lib/js/caml_exceptions.js");
 var Exceptions$ReView = require("./Exceptions.bs.js");
 var Caml_js_exceptions = require("bs-platform/lib/js/caml_js_exceptions.js");
 
@@ -34,7 +32,7 @@ function Make(Reconciler) {
             key: undefined,
             index: 0,
             map: Opaque$ReView.$$Map.make(undefined),
-            ref: /* None */0,
+            ref: undefined,
             props: props,
             instance: undefined,
             hooks: Opaque$ReView.$$Array.make(undefined),
@@ -119,29 +117,21 @@ function Make(Reconciler) {
   var Consumer = {
     make: make$3
   };
-  var read = function (wip, context) {
-    return Let$ReView.OptionOrError.let_(/* tuple */[
-                wip.parent,
-                Exceptions$ReView.MissingContext
-              ], (function (param) {
-                  var parent = param.parent;
-                  var instance = param.instance;
-                  if (param.fiberTag === /* ContextProvider */8 && Caml_obj.caml_equal(param.props.context, context)) {
-                    return Let$ReView.OptionOrError.let_(/* tuple */[
-                                instance,
-                                Exceptions$ReView.MissingContext
-                              ], (function (actualInstance) {
-                                  return actualInstance;
-                                }));
-                  } else {
-                    return Let$ReView.OptionOrError.let_(/* tuple */[
-                                parent,
-                                Exceptions$ReView.MissingContext
-                              ], (function (actualParent) {
-                                  return read(actualParent, context);
-                                }));
-                  }
-                }));
+  var read = function (_wip, context) {
+    while(true) {
+      var wip = _wip;
+      var parent = Let$ReView.$pipe$pipe$great(wip.parent, Exceptions$ReView.MissingContext);
+      if (parent.fiberTag === /* ContextProvider */8) {
+        var actualProps = parent.props;
+        if (Caml_obj.caml_equal(actualProps.context, context)) {
+          return Let$ReView.$pipe$pipe$great(parent.instance, Exceptions$ReView.MissingContext);
+        }
+        _wip = parent;
+        continue ;
+      }
+      _wip = parent;
+      continue ;
+    };
   };
   var Context = {
     make: make$1,
@@ -156,7 +146,7 @@ function Make(Reconciler) {
             constructor: undefined,
             fiberTag: /* ErrorBoundary */7,
             key: param.key,
-            ref: /* None */0,
+            ref: undefined,
             props: props
           };
   };
@@ -169,7 +159,7 @@ function Make(Reconciler) {
             constructor: undefined,
             fiberTag: /* Fragment */3,
             key: param.key,
-            ref: /* None */0,
+            ref: undefined,
             props: props
           };
   };
@@ -508,15 +498,10 @@ function Make(Reconciler) {
     
   };
   var getCurrentFiber = function (param) {
-    return Let$ReView.OptionOrError.let_(/* tuple */[
-                hookFiber.contents,
-                Exceptions$ReView.OutOfContextHookCall
-              ], (function (currentFiber) {
-                  return currentFiber;
-                }));
+    return Let$ReView.$pipe$pipe$great(hookFiber.contents, Exceptions$ReView.OutOfContextHookCall);
   };
   var make$7 = function (tag) {
-    var currentFiber = getCurrentFiber(undefined);
+    var currentFiber = Let$ReView.$pipe$pipe$great(hookFiber.contents, Exceptions$ReView.OutOfContextHookCall);
     var current = hookCursor.contents;
     var slot = Opaque$ReView.$$Array.get(currentFiber.hooks, current);
     hookCursor.contents = current + 1 | 0;
@@ -576,7 +561,7 @@ function Make(Reconciler) {
     use: use$1
   };
   var use$2 = function (context) {
-    var wip = getCurrentFiber(undefined);
+    var wip = Let$ReView.$pipe$pipe$great(hookFiber.contents, Exceptions$ReView.OutOfContextHookCall);
     var instance = read(wip, context);
     Opaque$ReView.$$Set.add(wip.dependencies, context);
     return instance.value;
@@ -688,7 +673,7 @@ function Make(Reconciler) {
     use: use$6
   };
   var use$7 = function (reducer, initial) {
-    var wip = getCurrentFiber(undefined);
+    var wip = Let$ReView.$pipe$pipe$great(hookFiber.contents, Exceptions$ReView.OutOfContextHookCall);
     var state = make$7(/* ReducerState */10);
     var dispatch = make$7(/* ReducerDispatch */11);
     var match = state.value;
@@ -723,7 +708,7 @@ function Make(Reconciler) {
     use: use$7
   };
   var use$8 = function (initial) {
-    var wip = getCurrentFiber(undefined);
+    var wip = Let$ReView.$pipe$pipe$great(hookFiber.contents, Exceptions$ReView.OutOfContextHookCall);
     var state = make$7(/* State */8);
     var dispatch = make$7(/* SetState */9);
     var match = state.value;
@@ -758,21 +743,6 @@ function Make(Reconciler) {
     use: use$8
   };
   var use$9 = function (initialValue) {
-    var state = make$7(/* Reference */13);
-    var value = state.value;
-    if (value !== undefined) {
-      return Caml_option.valFromOption(value);
-    }
-    var value$1 = /* Mutable */Block.__(0, [{
-          contents: Caml_option.some(initialValue)
-        }]);
-    state.value = Caml_option.some(value$1);
-    return value$1;
-  };
-  var Reference = {
-    use: use$9
-  };
-  var use$10 = function (initialValue) {
     var state = make$7(/* Mutable */12);
     var value = state.value;
     if (value !== undefined) {
@@ -785,13 +755,13 @@ function Make(Reconciler) {
     return value$1;
   };
   var Mutable = {
-    use: use$10
+    use: use$9
   };
-  var use$11 = function (param) {
-    return getCurrentFiber(undefined).identifier;
+  var use$10 = function (param) {
+    return Let$ReView.$pipe$pipe$great(hookFiber.contents, Exceptions$ReView.OutOfContextHookCall).identifier;
   };
   var Identifier = {
-    use: use$11
+    use: use$10
   };
   var Functions = {
     Callback: Callback,
@@ -803,7 +773,6 @@ function Make(Reconciler) {
     Memo: Memo$1,
     Reducer: Reducer,
     State: State,
-    Reference: Reference,
     Mutable: Mutable,
     Identifier: Identifier
   };
@@ -828,16 +797,12 @@ function Make(Reconciler) {
   };
   var updateBasic = function (current, wip) {
     var result = safelyRender(wip, (function (param) {
-            return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor,
-                        Exceptions$ReView.MissingBasicComponentConstructor
-                      ], (function (constructor) {
-                          var props = wip.props;
-                          return Curry._2(constructor, {
-                                      key: wip.key,
-                                      ref: wip.ref
-                                    }, props);
-                        }));
+            var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingBasicComponentConstructor);
+            var props = wip.props;
+            return Curry._2(constructor, {
+                        key: wip.key,
+                        ref: wip.ref
+                      }, props);
           }));
     if (result !== undefined) {
       return call(current, wip, [result]);
@@ -847,16 +812,12 @@ function Make(Reconciler) {
   var updateComponent = function (current, wip) {
     render$1(current, wip);
     var result = safelyRender(wip, (function (param) {
-            return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor,
-                        Exceptions$ReView.MissingComponentConstructor
-                      ], (function (constructor) {
-                          var props = wip.props;
-                          return Curry._2(constructor, {
-                                      key: wip.key,
-                                      ref: wip.ref
-                                    }, props);
-                        }));
+            var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingComponentConstructor);
+            var props = wip.props;
+            return Curry._2(constructor, {
+                        key: wip.key,
+                        ref: wip.ref
+                      }, props);
           }));
     finishRender(undefined);
     if (result !== undefined) {
@@ -883,35 +844,22 @@ function Make(Reconciler) {
   };
   var updateContextProvider = function (current, wip) {
     var props = wip.props;
-    return Let$ReView.OptionOrError.let_(/* tuple */[
-                props.value,
-                Exceptions$ReView.DesyncContextValue
-              ], (function (actualValue) {
-                  var actualInstance = wip.instance;
-                  if (actualInstance !== undefined) {
-                    var actualInstance$1 = Caml_option.valFromOption(actualInstance);
-                    Let$ReView.OptionOrError.let_(/* tuple */[
-                          current,
-                          Exceptions$ReView.UnboundContextInstance
-                        ], (function (actualCurrent) {
-                            return Let$ReView.OptionOrError.let_(/* tuple */[
-                                        actualCurrent.instance,
-                                        Exceptions$ReView.UnboundContextInstance
-                                      ], (function (prevOpaqueInstance) {
-                                          actualInstance$1.shouldUpdate = Caml_obj.caml_notequal(actualValue, prevOpaqueInstance.value);
-                                          actualInstance$1.value = actualValue;
-                                          
-                                        }));
-                          }));
-                  } else {
-                    var instance = {
-                      value: actualValue,
-                      shouldUpdate: true
-                    };
-                    wip.instance = Caml_option.some(instance);
-                  }
-                  return call(current, wip, props.children);
-                }));
+    var value = Let$ReView.$pipe$pipe$great(props.value, Exceptions$ReView.DesyncContextValue);
+    var actualInstance = wip.instance;
+    if (actualInstance !== undefined) {
+      var actualInstance$1 = Caml_option.valFromOption(actualInstance);
+      var actualCurrent = Let$ReView.$pipe$pipe$great(current, Exceptions$ReView.UnboundContextInstance);
+      var prevInstance = Let$ReView.$pipe$pipe$great(actualCurrent.instance, Exceptions$ReView.UnboundContextInstance);
+      actualInstance$1.shouldUpdate = Caml_obj.caml_notequal(value, prevInstance.value);
+      actualInstance$1.value = value;
+    } else {
+      var instance = {
+        value: value,
+        shouldUpdate: true
+      };
+      wip.instance = Caml_option.some(instance);
+    }
+    return call(current, wip, props.children);
   };
   var updateErrorBoundary = function (current, wip) {
     var props = wip.props;
@@ -924,30 +872,21 @@ function Make(Reconciler) {
   var updateHost = function (current, wip) {
     var props = wip.props;
     if (wip.instance === undefined) {
-      Let$ReView.OptionOrError.let_(/* tuple */[
-            wip.constructor,
-            Exceptions$ReView.InvalidHostConstructor
-          ], (function (constructor) {
-              var instance = Curry._4(Reconciler.createInstance, constructor, props.attributes, wip.identifier, wip);
-              wip.instance = Caml_option.some(instance);
-              
-            }));
+      var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.InvalidHostConstructor);
+      var instance = Curry._4(Reconciler.createInstance, constructor, props.attributes, wip.identifier, wip);
+      wip.instance = Caml_option.some(instance);
     }
     return call(current, wip, props.children);
   };
   var updateMemoInitial = function (current, wip) {
     render$1(current, wip);
     var result = safelyRender(wip, (function (param) {
-            return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor,
-                        Exceptions$ReView.MissingMemoComponentConstructor
-                      ], (function (constructor) {
-                          var props = wip.props;
-                          return Curry._2(constructor, {
-                                      key: wip.key,
-                                      ref: wip.ref
-                                    }, props);
-                        }));
+            var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingMemoComponentConstructor);
+            var props = wip.props;
+            return Curry._2(constructor, {
+                        key: wip.key,
+                        ref: wip.ref
+                      }, props);
           }));
     finishRender(undefined);
     if (result !== undefined) {
@@ -986,16 +925,12 @@ function Make(Reconciler) {
   };
   var updateMemoBasicInitial = function (current, wip) {
     var result = safelyRender(wip, (function (param) {
-            return Let$ReView.OptionOrError.let_(/* tuple */[
-                        wip.constructor,
-                        Exceptions$ReView.MissingMemoBasicComponentConstructor
-                      ], (function (constructor) {
-                          var props = wip.props;
-                          return Curry._2(constructor, {
-                                      key: wip.key,
-                                      ref: wip.ref
-                                    }, props);
-                        }));
+            var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingMemoBasicComponentConstructor);
+            var props = wip.props;
+            return Curry._2(constructor, {
+                        key: wip.key,
+                        ref: wip.ref
+                      }, props);
           }));
     if (result !== undefined) {
       wip.children = result;
@@ -1067,13 +1002,8 @@ function Make(Reconciler) {
     call: call$1
   };
   var raiseToParent = function (wip, error) {
-    return Let$ReView.OptionOrError.let_(/* tuple */[
-                wip.parent,
-                error
-              ], (function (parent) {
-                  parent.error = error;
-                  
-                }));
+    Let$ReView.$pipe$pipe$great(wip.parent, error).error = error;
+    
   };
   var call$2 = function (wip) {
     return Let$ReView.OptionUnit.let_(wip.error, (function (error) {
@@ -1131,15 +1061,9 @@ function Make(Reconciler) {
                   return Let$ReView.OptionUnit.let_(parent.instance, (function (parentInstance) {
                                 return Let$ReView.OptionUnit.let_(wip.instance, (function (childInstance) {
                                               Curry._4(Reconciler.appendChild, parentInstance, childInstance, getInstanceIndex(parent, wip), wip);
-                                              var pointer = wip.ref;
-                                              if (typeof pointer === "number") {
-                                                return ;
-                                              } else if (pointer.tag) {
-                                                return Curry._1(pointer[0], childInstance);
-                                              } else {
-                                                pointer[0].contents = Caml_option.some(childInstance);
-                                                return ;
-                                              }
+                                              return Let$ReView.OptionUnit.let_(wip.ref, (function (ref) {
+                                                            return Curry._1(ref, childInstance);
+                                                          }));
                                             }));
                               }));
                 }));
@@ -1241,14 +1165,7 @@ function Make(Reconciler) {
     return Let$ReView.OptionUnit.let_(getHostParent(wip), (function (parent) {
                   return Let$ReView.OptionUnit.let_(parent.instance, (function (parentInstance) {
                                 return Let$ReView.OptionUnit.let_(wip.instance, (function (childInstance) {
-                                              Curry._4(Reconciler.removeChild, parentInstance, childInstance, getInstanceIndex(parent, wip), wip);
-                                              var pointer = wip.ref;
-                                              if (typeof pointer === "number" || pointer.tag) {
-                                                return ;
-                                              } else {
-                                                pointer[0].contents = undefined;
-                                                return ;
-                                              }
+                                              return Curry._4(Reconciler.removeChild, parentInstance, childInstance, getInstanceIndex(parent, wip), wip);
                                             }));
                               }));
                 }));
@@ -1501,24 +1418,20 @@ function Make(Reconciler) {
   };
   var call$11 = function (param) {
     updateScheduled.contents = false;
-    return Let$ReView.OptionOrError.let_(/* tuple */[
-                root.wip,
-                Exceptions$ReView.MissingWorkInProgressRoot
-              ], (function (wip) {
-                  call$10(wip.child);
-                  Let$ReView.OptionUnit.let_(root.current, (function (current) {
-                          return detach(current.alternate);
-                        }));
-                  root.current = root.wip;
-                  root.wip = undefined;
-                  call$9(wip.child);
-                  if (updateScheduled.contents) {
-                    update(undefined);
-                    updateScheduled.contents = false;
-                    return ;
-                  }
-                  
-                }));
+    var wip = Let$ReView.$pipe$pipe$great(root.wip, Exceptions$ReView.MissingWorkInProgressRoot);
+    call$10(wip.child);
+    Let$ReView.OptionUnit.let_(root.current, (function (current) {
+            return detach(current.alternate);
+          }));
+    root.current = root.wip;
+    root.wip = undefined;
+    call$9(wip.child);
+    if (updateScheduled.contents) {
+      update(undefined);
+      updateScheduled.contents = false;
+      return ;
+    }
+    
   };
   var Root$1 = {
     call: call$11
@@ -1550,7 +1463,6 @@ function Make(Reconciler) {
       return nextWork;
     }
   };
-  var Test = Caml_exceptions.create("Engine-ReView.Make(Reconciler).Test");
   var workLoop = function (deadline) {
     var shouldYield = {
       contents: false
@@ -1590,19 +1502,17 @@ function Make(Reconciler) {
           Commit: Commit,
           completeUnitOfWork: completeUnitOfWork,
           performUnitOfWork: performUnitOfWork,
-          Test: Test,
           workLoop: workLoop,
           useCallback: use,
           useConstant: use$1,
           useContext: use$2,
           useEffect: use$3,
           useForceUpdate: use$4,
-          useIdentifier: use$11,
+          useIdentifier: use$10,
           useLayoutEffect: use$5,
           useMemo: use$6,
-          useMutable: use$10,
+          useMutable: use$9,
           useReducer: use$7,
-          useReference: use$9,
           useState: use$8
         };
 }
