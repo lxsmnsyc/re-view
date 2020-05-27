@@ -135,3 +135,24 @@ module type Component = {
 module Children = {
   type t = array(option(Element.t));
 };
+
+
+/**
+ * Module types
+ */
+module type Reconciler = {
+  type t;
+
+  let createInstance: (string, 'props, string, 'fiber) => t;
+  let appendChild: (t, t, int, 'fiber) => unit;
+  let removeChild: (t, t, int, 'fiber) => unit;
+  let commitUpdate: (t, 'props, 'props, int, 'fiber) => unit;
+};
+
+module type Fiber = {
+  type t;
+
+  let make: (string, Tags.Fiber.t, 'a) => t;
+  let detach: option(t) => unit;
+  let createIndex: unit => int;
+};
