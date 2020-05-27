@@ -25,7 +25,7 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2020
  */
-module Reconciler: Reconciler.ReconcilerType = {
+module Reconciler: Types.Reconciler = {
   type t;
 
   [@bs.module "./bindings/dom.js"]
