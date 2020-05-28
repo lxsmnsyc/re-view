@@ -1,5 +1,6 @@
 // Entry point
 [@bs.val] external document: Js.t({..}) = "document";
+[@bs.val] external setTimeout: (unit => unit, int) => unit = "setTimeout";
 
 open ReView;
 
@@ -19,7 +20,8 @@ module Image = DOM.Memo({
   let make = (_, _) => {
     let state = DOM.useContext(imageContext);
 
-    DOM.Element.make("img", { key: None, ref: None}, {
+    DOM.Element.make({ key: None, ref: None}, {
+      tag: "img",
       attributes: DOM.Element.attributes(
         ~src=state,
         (),
@@ -37,7 +39,21 @@ module ImageSrc = DOM.Memo({
   let make = (_, _) => {
     let state = DOM.useContext(imageContext);
 
-    DOM.Text.make("Current source: " ++ state);
+    if (state == initialImage) {
+      DOM.Fragment.make({ key: None, ref: None}, {
+        children: [|
+          DOM.Text.make("Current source: " ++ state),
+          DOM.Text.make("Current source: " ++ state),
+        |],
+      });
+    } else {
+      DOM.Fragment.make({ key: None, ref: None}, {
+        children: [|
+          None,
+          DOM.Text.make("Current source: " ++ state),
+        |],
+      });
+    }
   };
 });
 
@@ -47,7 +63,8 @@ module ImageGroup = DOM.Memo({
   let name = "ImageGroup";
 
   let make = (_, _) => {
-    DOM.Element.make("div", { key: None, ref: None }, {
+    DOM.Element.make({ key: None, ref: None }, {
+      tag: "div",
       attributes: DOM.Element.attributes(),
       children: [|
         ImageSrc.make({ key: None, ref: None }, ()),
@@ -73,7 +90,7 @@ module Content = DOM.Memo({
   };
 });
 
-module App = DOM.Memo({
+module App = DOM.Component({
   type props = unit;
 
   let name = "App";
@@ -82,12 +99,16 @@ module App = DOM.Memo({
     let (state, setState) = DOM.useState(() => initialImage);
 
     DOM.useLayoutEffect(() => {
-      setState(_ => finalImage);
+      setTimeout(() => {
+        setState(_ => finalImage);
+      }, 5000);
 
       None;
     }, state);
 
     let (context, setContext) = DOM.useState(() => testContext);
+
+    Js.log(state);
 
     DOM.ErrorBoundary.make({ key: None, ref: None }, {
       onError: (value, trace) => {
