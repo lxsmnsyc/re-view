@@ -91,7 +91,6 @@ module Tags = {
       | ReducerState
       | ReducerDispatch
       | Mutable
-      | Reference
     ;
   };
 };
@@ -110,22 +109,21 @@ module Element = {
     props: Opaque.t,
   };
 
-  type base = {
+  type parameter = {
     key: option(string),
     ref: Reference.t(Opaque.t),
+  };
+
+  type argument = {
+    ref: Reference.t(Opaque.t),
+    identifier: string,
   };
 };
 
 module Component = {
-  type t('props) = (Element.base, 'props) => option(Element.t);
-};
+  type t('props) = (Element.parameter, 'props) => option(Element.t);
 
-module type Component = {
-  type props;
-
-  let make: Component.t(props);
-
-  let name: string;
+  type render('props) = (Element.argument, 'props) => option(Element.t);
 };
 
 module Children = {
@@ -145,10 +143,10 @@ module type Reconciler = {
   let commitUpdate: (t, 'props, 'props, int, 'fiber) => unit;
 };
 
-module type Fiber = {
-  type t;
+module type Component = {
+  type props;
 
-  let make: (string, Tags.Fiber.t, 'a) => t;
-  let detach: option(t) => unit;
-  let createIndex: unit => int;
+  let make: Component.render(props);
+
+  let name: string;
 };
