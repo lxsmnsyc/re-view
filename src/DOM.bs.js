@@ -35,9 +35,12 @@ var DomCore = Engine$ReView.Make(Reconciler);
 
 var render = DomCore.Core.render;
 
-function make(tag, base, props) {
-  return Curry._2(DomCore.Host.make, base, {
-              constructor: tag,
+function make(param, props) {
+  return Curry._2(DomCore.Host.make, {
+              key: undefined,
+              ref: param.ref
+            }, {
+              constructor: props.tag,
               attributes: props.attributes,
               children: props.children
             });
@@ -50,7 +53,7 @@ var $$Element = {
 function make$1(value) {
   return Curry._2(DomCore.Host.make, {
               key: undefined,
-              ref: /* None */0
+              ref: undefined
             }, {
               constructor: "text",
               attributes: {
@@ -65,8 +68,9 @@ var $$Text = {
 };
 
 function loop(time) {
+  var current = performance.now();
   Curry._1(DomCore.workLoop, (function (param) {
-          return performance.now() - time;
+          return current - time;
         }));
   window.requestAnimationFrame(loop);
   
@@ -93,8 +97,6 @@ var useMemo = DomCore.useMemo;
 var useMutable = DomCore.useMutable;
 
 var useReducer = DomCore.useReducer;
-
-var useReference = DomCore.useReference;
 
 var useState = DomCore.useState;
 
@@ -125,7 +127,6 @@ exports.useLayoutEffect = useLayoutEffect;
 exports.useMemo = useMemo;
 exports.useMutable = useMutable;
 exports.useReducer = useReducer;
-exports.useReference = useReference;
 exports.useState = useState;
 exports.Context = Context;
 exports.Fragment = Fragment;

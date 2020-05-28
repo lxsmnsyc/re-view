@@ -55,7 +55,6 @@ let useLayoutEffect = DomCore.useLayoutEffect;
 let useMemo = DomCore.useMemo;
 let useMutable = DomCore.useMutable;
 let useReducer = DomCore.useReducer;
-let useReference = DomCore.useReference;
 let useState = DomCore.useState;
 
 /**
@@ -887,13 +886,14 @@ module Element = {
   };
 
   type props = {
+    tag: string,
     attributes: attributes,
     children: Types.Children.t,
   };
 
-  let make = (tag: string, base: Types.Element.base, props: props): option(Types.Element.t) => {
-    DomCore.Host.make(base, {
-      constructor: tag,
+  let make: Types.Component.t(props) = ({ ref }, props): option(Types.Element.t) => {
+    DomCore.Host.make({ ref, key: None }, {
+      constructor: props.tag,
       attributes: Opaque.convert(props.attributes),
       children: props.children,
     });
@@ -916,7 +916,8 @@ module Text = {
 [@bs.val] external now: unit => float = "performance.now";
 
 let rec loop = (time) => {
-  DomCore.workLoop(() => now() -. time);
+  let current = now();
+  DomCore.workLoop(() => current -. time);
   requestAnimationFrame(loop);
 };
 
