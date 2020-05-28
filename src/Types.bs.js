@@ -52,7 +52,41 @@ var Work = {
   map: map$1
 };
 
-var Hook = { };
+function map$2(tag) {
+  switch (tag) {
+    case /* Callback */0 :
+        return "Callback";
+    case /* Constant */1 :
+        return "Constant";
+    case /* Context */2 :
+        return "Context";
+    case /* Dependency */3 :
+        return "Dependency";
+    case /* Effect */4 :
+        return "Effect";
+    case /* ForceUpdate */5 :
+        return "ForceUpdate";
+    case /* LayoutEffect */6 :
+        return "LayoutEffect";
+    case /* Memo */7 :
+        return "Memo";
+    case /* State */8 :
+        return "State";
+    case /* SetState */9 :
+        return "SetState";
+    case /* ReducerState */10 :
+        return "ReducerState";
+    case /* ReducerDispatch */11 :
+        return "ReducerDispatch";
+    case /* Mutable */12 :
+        return "Mutable";
+    
+  }
+}
+
+var Hook = {
+  map: map$2
+};
 
 var Tags = {
   Fiber: Fiber,

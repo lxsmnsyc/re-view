@@ -92,6 +92,24 @@ module Tags = {
       | ReducerDispatch
       | Mutable
     ;
+
+    let map = (tag: t) => {
+      switch (tag) {
+        | Callback => "Callback"
+        | Constant => "Constant"
+        | Context => "Context"
+        | Dependency => "Dependency"
+        | Effect => "Effect"
+        | ForceUpdate => "ForceUpdate"
+        | LayoutEffect => "LayoutEffect"
+        | Memo => "Memo"
+        | State => "State"
+        | SetState => "SetState"
+        | ReducerState => "ReducerState"
+        | ReducerDispatch => "ReducerDispatch"
+        | Mutable => "Mutable"
+      }
+    };
   };
 };
 
