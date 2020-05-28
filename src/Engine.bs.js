@@ -88,7 +88,7 @@ function Make(Reconciler) {
             name: context.name + ".Provider",
             constructor: undefined,
             fiberTag: /* ContextProvider */8,
-            key: param.key,
+            key: undefined,
             ref: param.ref,
             props: {
               context: context,
@@ -106,7 +106,7 @@ function Make(Reconciler) {
             name: context.name + ".Consumer",
             constructor: undefined,
             fiberTag: /* ContextConsumer */9,
-            key: param.key,
+            key: undefined,
             ref: param.ref,
             props: {
               context: context,
@@ -145,7 +145,7 @@ function Make(Reconciler) {
             name: "ErrorBoundary",
             constructor: undefined,
             fiberTag: /* ErrorBoundary */7,
-            key: param.key,
+            key: undefined,
             ref: undefined,
             props: props
           };
@@ -158,7 +158,7 @@ function Make(Reconciler) {
             name: "Fragment",
             constructor: undefined,
             fiberTag: /* Fragment */3,
-            key: param.key,
+            key: undefined,
             ref: undefined,
             props: props
           };
@@ -173,7 +173,7 @@ function Make(Reconciler) {
             name: constructor,
             constructor: Caml_option.some(constructor),
             fiberTag: /* Host */1,
-            key: param.key,
+            key: undefined,
             ref: param.ref,
             props: {
               constructor: constructor,
@@ -191,7 +191,7 @@ function Make(Reconciler) {
               name: C.name,
               constructor: Caml_option.some(C.make),
               fiberTag: /* Basic */4,
-              key: param.key,
+              key: undefined,
               ref: param.ref,
               props: props
             };
@@ -207,23 +207,7 @@ function Make(Reconciler) {
               name: C.name,
               constructor: Caml_option.some(C.make),
               fiberTag: /* MemoBasic */6,
-              key: param.key,
-              ref: param.ref,
-              props: props
-            };
-    };
-    return {
-            name: C.name,
-            make: make
-          };
-  };
-  var Memo = function (C) {
-    var make = function (param, props) {
-      return {
-              name: C.name,
-              constructor: Caml_option.some(C.make),
-              fiberTag: /* Memo */5,
-              key: param.key,
+              key: undefined,
               ref: param.ref,
               props: props
             };
@@ -239,7 +223,23 @@ function Make(Reconciler) {
               name: C.name,
               constructor: Caml_option.some(C.make),
               fiberTag: /* Component */0,
-              key: param.key,
+              key: undefined,
+              ref: param.ref,
+              props: props
+            };
+    };
+    return {
+            name: C.name,
+            make: make
+          };
+  };
+  var Memo = function (C) {
+    var make = function (param, props) {
+      return {
+              name: C.name,
+              constructor: Caml_option.some(C.make),
+              fiberTag: /* Memo */5,
+              key: undefined,
               ref: param.ref,
               props: props
             };
@@ -252,17 +252,15 @@ function Make(Reconciler) {
   var root = {
     current: undefined,
     wip: undefined,
-    next: undefined
-  };
-  var rootContainer = {
-    contents: undefined
+    next: undefined,
+    container: undefined
   };
   var updateScheduled = {
     contents: false
   };
   var renderBase = function (props) {
     var renderFiber = make("Root", /* Root */2, props);
-    renderFiber.instance = rootContainer.contents;
+    renderFiber.instance = root.container;
     renderFiber.alternate = root.current;
     root.wip = renderFiber;
     root.next = renderFiber;
@@ -270,21 +268,10 @@ function Make(Reconciler) {
   };
   var update = function (param) {
     var current = root.current;
-    var tmp;
-    if (current !== undefined) {
-      tmp = current.props;
-    } else {
-      var current$1 = root.wip;
-      if (current$1 !== undefined) {
-        tmp = current$1.props;
-      } else {
-        throw Exceptions$ReView.MissingCurrentRoot;
-      }
-    }
-    return renderBase(tmp);
+    return renderBase(current !== undefined ? current.props : Let$ReView.$pipe$pipe$great(root.wip, Exceptions$ReView.MissingCurrentRoot).props);
   };
   var render = function (element, container) {
-    rootContainer.contents = Caml_option.some(container);
+    root.container = Caml_option.some(container);
     return renderBase({
                 value: container,
                 children: element
@@ -292,7 +279,6 @@ function Make(Reconciler) {
   };
   var Core = {
     root: root,
-    rootContainer: rootContainer,
     updateScheduled: updateScheduled,
     renderBase: renderBase,
     update: update,
@@ -346,11 +332,7 @@ function Make(Reconciler) {
     newFiber.parent = parent;
     newFiber.index = index;
     newFiber.key = key;
-    if (key !== undefined) {
-      return Opaque$ReView.$$Map.set(parent.map, key, newFiber);
-    } else {
-      return Opaque$ReView.$$Map.set(parent.map, index, newFiber);
-    }
+    return Opaque$ReView.$$Map.set(parent.map, Let$ReView.$pipe$pipe$less(key, index), newFiber);
   };
   var replaceFiber = function (parent, oldFiber, element, index, key) {
     var replacementFiber = make(element.name, element.fiberTag, element.props);
@@ -404,7 +386,7 @@ function Make(Reconciler) {
                     } else {
                       return Let$ReView.$$Option.let_(element, (function (actualElement) {
                                     if (actualElement.fiberTag !== actualOldFiber.fiberTag || Caml_obj.caml_notequal(actualElement.constructor, actualOldFiber.constructor)) {
-                                      return deleteFiber(parent, actualOldFiber, index, key);
+                                      return replaceFiber(parent, actualOldFiber, actualElement, index, key);
                                     } else {
                                       return updateFiberFromElement(parent, actualOldFiber, actualElement, index, key);
                                     }
@@ -419,28 +401,25 @@ function Make(Reconciler) {
   };
   var getMatchingFiber = function (current, index, key) {
     return Let$ReView.$$Option.let_(current, (function (actualCurrent) {
-                  if (key !== undefined && Opaque$ReView.$$Map.has(actualCurrent.map, key)) {
-                    return Opaque$ReView.$$Map.get(actualCurrent.map, key);
-                  } else {
-                    return Opaque$ReView.$$Map.get(actualCurrent.map, index);
-                  }
+                  return Opaque$ReView.$$Map.get(actualCurrent.map, Let$ReView.$pipe$pipe$less(key, index));
                 }));
   };
   var call = function (current, wip, children) {
     var previousFiber = {
       contents: undefined
     };
-    var linkFiber = function (newFiber, hasElement) {
+    var linkFiber = function (newFiber) {
       if (wip.child === undefined) {
         wip.child = newFiber;
-      } else if (hasElement) {
-        Let$ReView.OptionUnit.let_(previousFiber.contents, (function (prev) {
-                prev.sibling = newFiber;
-                
-              }));
+        previousFiber.contents = newFiber;
+        return ;
+      } else {
+        return Let$ReView.OptionUnit.let_(previousFiber.contents, (function (prev) {
+                      prev.sibling = newFiber;
+                      previousFiber.contents = newFiber;
+                      
+                    }));
       }
-      previousFiber.contents = newFiber;
-      
     };
     var marked = Opaque$ReView.$$Set.make(undefined);
     $$Array.iteri((function (index, element) {
@@ -450,13 +429,13 @@ function Make(Reconciler) {
             Let$ReView.OptionUnit.let_(oldFiber, (function (actualFiber) {
                     return Opaque$ReView.$$Set.add(marked, actualFiber);
                   }));
-            return linkFiber(newFiber, element !== undefined);
+            return linkFiber(newFiber);
           }), children);
     Let$ReView.OptionUnit.let_(current, (function (actualCurrent) {
             var iterateFibers = function (oldFiber) {
               return Let$ReView.OptionUnit.let_(oldFiber, (function (iteratedFiber) {
                             if (!Opaque$ReView.$$Set.has(marked, iteratedFiber)) {
-                              linkFiber(deleteFiber(wip, iteratedFiber, iteratedFiber.index, iteratedFiber.key), false);
+                              linkFiber(deleteFiber(wip, iteratedFiber, iteratedFiber.index, iteratedFiber.key));
                             }
                             return iterateFibers(iteratedFiber.sibling);
                           }));
@@ -800,8 +779,8 @@ function Make(Reconciler) {
             var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingBasicComponentConstructor);
             var props = wip.props;
             return Curry._2(constructor, {
-                        key: wip.key,
-                        ref: wip.ref
+                        ref: wip.ref,
+                        identifier: wip.identifier
                       }, props);
           }));
     if (result !== undefined) {
@@ -815,8 +794,8 @@ function Make(Reconciler) {
             var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingComponentConstructor);
             var props = wip.props;
             return Curry._2(constructor, {
-                        key: wip.key,
-                        ref: wip.ref
+                        ref: wip.ref,
+                        identifier: wip.identifier
                       }, props);
           }));
     finishRender(undefined);
@@ -884,8 +863,8 @@ function Make(Reconciler) {
             var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingMemoComponentConstructor);
             var props = wip.props;
             return Curry._2(constructor, {
-                        key: wip.key,
-                        ref: wip.ref
+                        ref: wip.ref,
+                        identifier: wip.identifier
                       }, props);
           }));
     finishRender(undefined);
@@ -928,8 +907,8 @@ function Make(Reconciler) {
             var constructor = Let$ReView.$pipe$pipe$great(wip.constructor, Exceptions$ReView.MissingMemoBasicComponentConstructor);
             var props = wip.props;
             return Curry._2(constructor, {
-                        key: wip.key,
-                        ref: wip.ref
+                        ref: wip.ref,
+                        identifier: wip.identifier
                       }, props);
           }));
     if (result !== undefined) {
@@ -1165,6 +1144,7 @@ function Make(Reconciler) {
     return Let$ReView.OptionUnit.let_(getHostParent(wip), (function (parent) {
                   return Let$ReView.OptionUnit.let_(parent.instance, (function (parentInstance) {
                                 return Let$ReView.OptionUnit.let_(wip.instance, (function (childInstance) {
+                                              console.log(wip);
                                               return Curry._4(Reconciler.removeChild, parentInstance, childInstance, getInstanceIndex(parent, wip), wip);
                                             }));
                               }));
@@ -1467,17 +1447,21 @@ function Make(Reconciler) {
     var shouldYield = {
       contents: false
     };
-    var loop = function (deadline) {
+    if (updateScheduled.contents) {
+      update(undefined);
+      updateScheduled.contents = false;
+    }
+    var loop = function (param) {
       if (!shouldYield.contents) {
         return Let$ReView.OptionUnit.let_(root.next, (function (nextUnitOfWork) {
                       root.next = performUnitOfWork(nextUnitOfWork.alternate, nextUnitOfWork);
                       shouldYield.contents = Curry._1(deadline, undefined) < 1.0;
-                      return loop(deadline);
+                      return loop(undefined);
                     }));
       }
       
     };
-    loop(deadline);
+    loop(undefined);
     if (root.next === undefined && root.wip !== undefined) {
       return call$11(undefined);
     }
@@ -1492,8 +1476,8 @@ function Make(Reconciler) {
           Host: Host,
           Basic: Basic,
           MemoBasic: MemoBasic,
-          Memo: Memo,
           Component: Component,
+          Memo: Memo,
           Core: Core,
           Utils: Utils,
           ReconcileChildren: ReconcileChildren,

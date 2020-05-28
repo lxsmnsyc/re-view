@@ -217,7 +217,7 @@ module Make = (Reconciler: Types.Reconciler) => {
         children: Types.Children.t,
       };
 
-      let make: Types.Component.t(props('a)) = ({ key, ref }, { context, value, children }) => {
+      let make: Types.Component.t(props('a)) = ({ ref }, { context, value, children }) => {
         let actualValue = {
           switch (value) {
             | Some(actual) => actual;
@@ -229,7 +229,7 @@ module Make = (Reconciler: Types.Reconciler) => {
           name: context.name ++ ".Provider",
           fiberTag: Types.Tags.Fiber.ContextProvider,
           constructor: None,
-          key: key,
+          key: None,
           ref: ref,
           props: Opaque.transform({
             context,
@@ -250,12 +250,12 @@ module Make = (Reconciler: Types.Reconciler) => {
         build: 'a => option(Types.Element.t),
       };
 
-      let make: Types.Component.t(props('a)) = ({ key, ref }, { context, build }) => {
+      let make: Types.Component.t(props('a)) = ({ ref }, { context, build }) => {
         Some({
           name: context.name ++ ".Consumer",
           fiberTag: Types.Tags.Fiber.ContextConsumer,
           constructor: None,
-          key: key,
+          key: None,
           ref: ref,
           props: Opaque.transform({
             context,
@@ -314,12 +314,12 @@ module Make = (Reconciler: Types.Reconciler) => {
       children: Types.Children.t,
     };
 
-    let make: Types.Component.t(props) = ({ key }, props) => {
+    let make: Types.Component.t(props) = (_, props) => {
       Some({
         name: "ErrorBoundary",
         fiberTag: Types.Tags.Fiber.ErrorBoundary,
         constructor: None,
-        key: key,
+        key: None,
         ref: None,
         props: Opaque.transform(props),
       });
@@ -335,18 +335,23 @@ module Make = (Reconciler: Types.Reconciler) => {
       children: Types.Children.t,
     };
 
-    let make: Types.Component.t(props) = ({ key }, props) => {
+    let make: Types.Component.t(props) = (_, props) => {
       Some({
         name: "Fragment",
         fiberTag: Types.Tags.Fiber.Fragment,
         constructor: None,
-        key: key,
+        key: None,
         ref: None,
         props: Opaque.transform(props),
       });
     };
   };
 
+  /**
+   * A Root is an internal component that
+   * represents a foreign instance where the
+   * component tree is mounted.
+   */
   module Root = {
     type props = {
       value: Reconciler.t,
@@ -354,6 +359,10 @@ module Make = (Reconciler: Types.Reconciler) => {
     };
   };
 
+  /**
+   * A Host is a kind of component that constructs
+   * an instance from the defined Reconciler functions.
+   */
   module Host = {
     type props = {
       constructor: string,
@@ -361,12 +370,12 @@ module Make = (Reconciler: Types.Reconciler) => {
       children: Types.Children.t,
     };
 
-    let make: Types.Component.t(props) = ({ key, ref }, { constructor, attributes, children }) => {
+    let make: Types.Component.t(props) = ({ ref }, { constructor, attributes, children }) => {
       Some({
         name: constructor,
         fiberTag: Types.Tags.Fiber.Host,
         constructor: Some(Opaque.transform(constructor)),
-        key: key,
+        key: None,
         ref: ref,
         props: Opaque.transform({
           constructor,
@@ -377,87 +386,107 @@ module Make = (Reconciler: Types.Reconciler) => {
     };
   }
 
+  /**
+   * Basic is a fundamental stateless component
+   */
   module Basic = (C: Types.Component) => {
     include C;
 
-    let make: Types.Component.t(props) = ({ key, ref }, props) => {
+    let make: Types.Component.t(props) = ({ ref }, props) => {
       Some({
         name: C.name,
         fiberTag: Types.Tags.Fiber.Basic,
         constructor: Some(Opaque.transform(C.make)),
-        key: key,
+        key: None,
         ref: ref,
         props: Opaque.transform(props),
       });
     };
   };
+
+  /**
+   * A MemoBasic is similar to a Basic component but
+   * the rendering process is memoized: the props' value
+   * is compared before deciding to render if the props
+   * changes.
+   */
 
   module MemoBasic = (C: Types.Component) => {
     include C;
 
-    let make: Types.Component.t(props) = ({ key, ref }, props) => {
+    let make: Types.Component.t(props) = ({ ref }, props) => {
       Some({
         name: C.name,
         fiberTag: Types.Tags.Fiber.MemoBasic,
         constructor: Some(Opaque.transform(C.make)),
-        key: key,
+        key: None,
         ref: ref,
         props: Opaque.transform(props),
       });
     };
   };
 
-  module Memo = (C: Types.Component) => {
-    include C;
-
-    let make: Types.Component.t(props) = ({ key, ref }, props) => {
-      Some({
-        name: C.name,
-        fiberTag: Types.Tags.Fiber.Memo,
-        constructor: Some(Opaque.transform(C.make)),
-        key: key,
-        ref: ref,
-        props: Opaque.transform(props),
-      });
-    };
-  };
-
-
+  /**
+   * A Component is a fundamental stateful component. Contrary to
+   * Basic, Component can be stateful (retaining component-level values),
+   * has access to lifecycles, has a
+   */
   module Component = (C: Types.Component) => {
     include C;
 
-    let make: Types.Component.t(props) = ({ key, ref }, props) => {
+    let make: Types.Component.t(props) = ({ ref }, props) => {
       Some({
         name: C.name,
         fiberTag: Types.Tags.Fiber.Component,
         constructor: Some(Opaque.transform(C.make)),
-        key: key,
+        key: None,
         ref: ref,
         props: Opaque.transform(props),
       });
     };
   };
+
+  /**
+   * A Memo is similar to a Component, with access to hooks, but is
+   * also similar to MemoBasic, with access to props memoization.
+   */
+  module Memo = (C: Types.Component) => {
+    include C;
+
+    let make: Types.Component.t(props) = ({ ref }, props) => {
+      Some({
+        name: C.name,
+        fiberTag: Types.Tags.Fiber.Memo,
+        constructor: Some(Opaque.transform(C.make)),
+        key: None,
+        ref: ref,
+        props: Opaque.transform(props),
+      });
+    };
+  };
+
 
   module Core = {
     type t = {
       mutable current: option(Fiber.t),
       mutable wip: option(Fiber.t),
       mutable next: option(Fiber.t),
+      mutable container: option(Opaque.t),
     };
 
     let root: t = {
       current: None,
       wip: None,
       next: None,
+      container: None,
     };
 
-    let rootContainer: ref(option(Opaque.t)) = ref(None);
     let updateScheduled: ref(bool) = ref(false);
 
     let renderBase = (props: 'a) => {
       let renderFiber = Fiber.make("Root", Types.Tags.Fiber.Root, props);
 
-      renderFiber.instance = rootContainer^;
+      renderFiber.instance = root.container;
       renderFiber.alternate = root.current;
 
       root.wip = Some(renderFiber);
@@ -467,15 +496,12 @@ module Make = (Reconciler: Types.Reconciler) => {
     let update = () => {
       renderBase(switch (root.current) {
         | Some(current) => current.props;
-        | None => switch (root.wip) {
-          | Some(current) => current.props;
-          | None => raise(Exceptions.MissingCurrentRoot);
-        }
+        | None => (root.wip ||> Exceptions.MissingCurrentRoot).props;
       });
     };
 
     let render = (element: option(Types.Element.t), container: Reconciler.t) => {
-      rootContainer := Some(Opaque.transform(container));
+      root.container = Some(Opaque.transform(container));
       let props: Root.props = {
         value: container,
         children: element,
@@ -502,19 +528,42 @@ module Make = (Reconciler: Types.Reconciler) => {
      * Measure the instance's child index in relation to it's parent.
      */
     let getInstanceIndex = (parent: Fiber.t, wip: Fiber.t): int => {
+      /**
+       * Tracks the children count.
+       */
       let count = ref(0);
+
+      /**
+       * Tracks if the target index has been found.
+       */
       let found = ref(false);
 
       let rec measure = (currentFiber: option(Fiber.t)) => {
         let%OptionUnit current = currentFiber;
+        /**
+         * If the index has not been found and the
+         * current fiber is not equal to the target
+         */
         if (!found^ && current !== wip) {
+          /**
+           * Increment the index if it is a host.
+           */
           if (current.fiberTag == Types.Tags.Fiber.Host) {
             count := count^ + 1;
           } else {
+            /**
+             * Otherwise, we go to the child tree.
+             */
             measure(current.child);
           }
+          /**
+           * Attempt to index the siblings.
+           */
           measure(current.sibling);
         } else {
+          /**
+           * target has been found, no more further measurements.
+           */
           found := true;
         }
       };
@@ -553,12 +602,13 @@ module Make = (Reconciler: Types.Reconciler) => {
       /**
        * Map current fiber to parent using the key or the index.
        */
-      switch (key) {
-        | Some(actualKey) => Opaque.Map.set(parent.map, actualKey, newFiber);
-        | None => Opaque.Map.set(parent.map, index, newFiber);
-      }
+      Opaque.Map.set(parent.map, key ||< index, newFiber);
     };
 
+    /**
+     * Creates a Fiber that will replace the old fiber
+     * with a new one.
+     */
     let replaceFiber = (parent: Fiber.t, oldFiber: Fiber.t, element: Types.Element.t, index: int, key: option(string)): Fiber.t => {
       let replacementFiber = Fiber.make(element.name, element.fiberTag, element.props);
       replacementFiber.constructor = element.constructor;
@@ -572,6 +622,9 @@ module Make = (Reconciler: Types.Reconciler) => {
       replacementFiber;
     };
 
+    /**
+     * Creates a Fiber that will delete the old fiber.
+     */
     let deleteFiber = (parent: Fiber.t, oldFiber: Fiber.t, index: int, key: option(string)): Fiber.t => {
       let deletionFiber = Fiber.make(oldFiber.name, oldFiber.fiberTag, oldFiber.props);
       deletionFiber.constructor = oldFiber.constructor;
@@ -629,20 +682,33 @@ module Make = (Reconciler: Types.Reconciler) => {
      * Produces a new fiber that represents the new unit of work for the new tree.
      */
     let updateFiber = (parent: Fiber.t, oldFiber: option(Fiber.t), element: option(Types.Element.t), index: int, key: option(string)): option(Fiber.t) => {
+      /**
+       * Check if there is an old Fiber
+       */
       if (oldFiber != None) {
         let%Option actualOldFiber = oldFiber;
-
+        
+        /**
+         * If the old Fiber is for deletion, but
+         * there is an element, we attempt to place
+         * the new element in the old Fiber's position.
+         */
         if (actualOldFiber.workTag == Types.Tags.Work.Delete && element != None) {
           let%Option actualElement = element;
           Some(createFiberFromElement(parent, actualElement, index, key));
         } else if (element == None) {
+          /**
+           * Otherwise, delete the Fiber.
+           */
           Some(deleteFiber(parent, actualOldFiber, index, key));
         } else {
           let%Option actualElement = element;
-          if (actualElement.fiberTag != actualOldFiber.fiberTag) {
-            Some(deleteFiber(parent, actualOldFiber, index, key));
-          } else if (actualElement.constructor != actualOldFiber.constructor) {
-            Some(deleteFiber(parent, actualOldFiber, index, key));
+          /**
+           * If the fiber tags nor the constructor aren't similar,
+           * replace the old Fiber
+           */
+          if ((actualElement.fiberTag != actualOldFiber.fiberTag) || (actualElement.constructor != actualOldFiber.constructor)){
+            Some(replaceFiber(parent, actualOldFiber, actualElement, index, key));
           } else {
             Some(updateFiberFromElement(parent, actualOldFiber, actualElement, index, key));
           }
@@ -660,18 +726,8 @@ module Make = (Reconciler: Types.Reconciler) => {
      */
     let getMatchingFiber = (current: option(Fiber.t), index: int, key: option(string)): option(Fiber.t) => {
       let%Option actualCurrent = current;
-      switch (key) {
-        | (Some(actualKey)) => {
-          if (Opaque.Map.has(actualCurrent.map, actualKey)) {
-            Opaque.Map.get(actualCurrent.map, actualKey);
-          } else {
-            Opaque.Map.get(actualCurrent.map, index);
-          }
-        };
-        | (None) => {
-          Opaque.Map.get(actualCurrent.map, index);
-        };
-      }
+
+      Opaque.Map.get(actualCurrent.map, key ||< index);
     };
 
     let call = (current: option(Fiber.t), wip: Fiber.t, children: Types.Children.t): option(Fiber.t) => {
@@ -680,19 +736,21 @@ module Make = (Reconciler: Types.Reconciler) => {
       /**
        * Connects the newest fiber to the wip tree
        */
-      let linkFiber = (newFiber: option(Fiber.t), hasElement: bool): unit => {
+      let linkFiber = (newFiber: option(Fiber.t)): unit => {
+        /**
+         * If there is no child, set the new Fiber as the first child.
+         */
         if (wip.child == None) {
           wip.child = newFiber;
-        } else if (hasElement) {
+          previousFiber := newFiber;
+        } else {
           let%OptionUnit prev = previousFiber^;
           prev.sibling = newFiber;
+          previousFiber := newFiber;
         }
-
-        previousFiber := newFiber;
       };
 
       let marked = Opaque.Set.make();
-
       /**
        * Perform work to new children
        */
@@ -711,7 +769,7 @@ module Make = (Reconciler: Types.Reconciler) => {
             Opaque.Set.add(marked, actualFiber);
           });
 
-          linkFiber(newFiber, element != None);
+          linkFiber(newFiber);
         });
       })
 
@@ -723,7 +781,9 @@ module Make = (Reconciler: Types.Reconciler) => {
         let rec iterateFibers = (oldFiber: option(Fiber.t)) => {
           let%OptionUnit iteratedFiber = oldFiber;
           if (!Opaque.Set.has(marked, iteratedFiber)) {
-            linkFiber(Some(deleteFiber(wip, iteratedFiber, iteratedFiber.index, iteratedFiber.key)), false);
+            linkFiber(
+              Some(deleteFiber(wip, iteratedFiber, iteratedFiber.index, iteratedFiber.key))
+            );
           }
           iterateFibers(iteratedFiber.sibling);
         };
@@ -1177,11 +1237,11 @@ module Make = (Reconciler: Types.Reconciler) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
         let constructor = wip.constructor ||> Exceptions.MissingBasicComponentConstructor;
 
-        let render: Types.Component.t('props) = Opaque.transform(constructor);
+        let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
         render({
-          key: wip.key,
           ref: wip.ref,
+          identifier: wip.identifier,
         }, props);
       });
 
@@ -1197,11 +1257,11 @@ module Make = (Reconciler: Types.Reconciler) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
         let constructor = wip.constructor ||> Exceptions.MissingComponentConstructor;
 
-        let render: Types.Component.t('props) = Opaque.transform(constructor);
+        let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
         render({
-          key: wip.key,
           ref: wip.ref,
+          identifier: wip.identifier,
         }, props);
       });
       Hooks.RenderContext.finishRender();
@@ -1299,11 +1359,11 @@ module Make = (Reconciler: Types.Reconciler) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
         let constructor = wip.constructor ||> Exceptions.MissingMemoComponentConstructor;
 
-        let render: Types.Component.t('props) = Opaque.transform(constructor);
+        let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
         render({
-          key: wip.key,
           ref: wip.ref,
+          identifier: wip.identifier,
         }, props);
       });
       Hooks.RenderContext.finishRender();
@@ -1353,11 +1413,11 @@ module Make = (Reconciler: Types.Reconciler) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
         let constructor = wip.constructor ||> Exceptions.MissingMemoBasicComponentConstructor;
 
-        let render: Types.Component.t('props) = Opaque.transform(constructor);
+        let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
         render({
-          key: wip.key,
           ref: wip.ref,
+          identifier: wip.identifier,
         }, props);
       });
 
@@ -1550,6 +1610,7 @@ module Make = (Reconciler: Types.Reconciler) => {
         let%OptionUnit parent = Utils.getHostParent(wip);
         let%OptionUnit parentInstance = parent.instance;
         let%OptionUnit childInstance = wip.instance;
+        Js.log(wip);
 
         Reconciler.removeChild(
           Opaque.transform(parentInstance),
@@ -1853,7 +1914,12 @@ module Make = (Reconciler: Types.Reconciler) => {
   let workLoop = (deadline: unit => float) => {
     let shouldYield = ref(false);
 
-    let rec loop = (deadline: unit => float) => {
+    if (Core.updateScheduled^) {
+      Core.update();
+      Core.updateScheduled := false;
+    }
+
+    let rec loop = () => {
       if (!shouldYield^) {
         let%OptionUnit nextUnitOfWork = Core.root.next;
 
@@ -1864,11 +1930,11 @@ module Make = (Reconciler: Types.Reconciler) => {
 
         shouldYield := deadline() < 1.0;
 
-        loop(deadline);
+        loop();
       }
     };
 
-    loop(deadline);
+    loop();
 
     if (Core.root.next == None && Core.root.wip != None) {
       Commit.Root.call();
