@@ -29,10 +29,10 @@
 /**
  * Unitialized Fiber constructor
  */
-exception MissingBasicComponentConstructor;
-exception MissingComponentConstructor;
-exception MissingMemoComponentConstructor;
-exception MissingMemoBasicComponentConstructor;
+exception MissingBasicComponentConstructor(string);
+exception MissingComponentConstructor(string);
+exception MissingMemoComponentConstructor(string);
+exception MissingMemoBasicComponentConstructor(string);
 
 /**
  * Attempt to call hooks outside component or memo component
@@ -42,22 +42,22 @@ exception OutOfContextHookCall;
 /**
  * Misplaced hook call
  */
-exception IncompatibleHook;
+exception IncompatibleHook(string, string);
 
 /**
  * Attempt to access context
  */
-exception MissingContext;
+exception MissingContext(string);
 
 /**
  * Missing context value
  */
-exception DesyncContextValue;
+exception DesyncContextValue(string);
 
 /**
  * Missing context instsance
  */
-exception UnboundContextInstance;
+exception UnboundContextInstance(string);
 
 /**
  * Attempt to construct a host instance with an invalid constructor.
