@@ -44,6 +44,11 @@ module Make = (Reconciler: Types.Reconciler) => {
      */
     let index = ref(0);
 
+    /**
+     * Tracks schedule updates
+     */
+    let scheduledUpdates = Opaque.Map.make();
+
     type t = {
       /**
        * fiber name
@@ -98,7 +103,6 @@ module Make = (Reconciler: Types.Reconciler) => {
        * Force rendering
        */
       dependencies: Opaque.Set.t,
-      mutable shouldUpdate: bool,
       /**
        * Error
        */
@@ -127,7 +131,6 @@ module Make = (Reconciler: Types.Reconciler) => {
       hooks: Opaque.Array.make(),
       ref: None,
       dependencies: Opaque.Set.make(),
-      shouldUpdate: false,
       children: None,
       identifier: "",
       error: None,
@@ -168,6 +171,14 @@ module Make = (Reconciler: Types.Reconciler) => {
       let currentIndex = index^ + 1;
       index := currentIndex;
       currentIndex;
+    };
+
+    let shouldUpdate = (wip: t, flag: bool) => {
+      Opaque.Map.set(scheduledUpdates, wip.identifier, flag);
+    };
+
+    let willUpdate = (wip: t): bool => {
+      Opaque.Map.get(scheduledUpdates, wip.identifier) ||< false;
     };
   };
 
@@ -218,12 +229,7 @@ module Make = (Reconciler: Types.Reconciler) => {
       };
 
       let make: Types.Component.t(props('a)) = ({ ref }, { context, value, children }) => {
-        let actualValue = {
-          switch (value) {
-            | Some(actual) => actual;
-            | None => context.defaultValue;
-          }
-        };
+        let actualValue = value ||< context.defaultValue; 
 
         Some({
           name: context.name ++ ".Provider",
@@ -274,7 +280,7 @@ module Make = (Reconciler: Types.Reconciler) => {
        * Attempt to get the parent if it is a provider, raising an error
        * if the parent is missing.
        */
-      let parent = wip.parent ||> Exceptions.MissingContext;
+      let parent = wip.parent ||> Exceptions.MissingContext(context.name);
 
       /**
        * Check if the parent is a Context.Provider instance
@@ -283,16 +289,16 @@ module Make = (Reconciler: Types.Reconciler) => {
         /**
          * Get the props
          */
-        let actualProps: Provider.props('a) = Opaque.transform(parent.props);
+        let props: Provider.props('a) = Opaque.transform(parent.props);
         /**
          * Check if the context prop is the same as the Context
          * instance we are looking
          */
-        if (actualProps.context == context) {
+        if (props.context == context) {
           /**
            * Attempt to extract and return the instance
            */
-          let instance = parent.instance ||> Exceptions.MissingContext;
+          let instance = parent.instance ||> Exceptions.MissingContext(context.name);
           Opaque.transform(instance);
         } else {
           read(parent, context);
@@ -810,15 +816,22 @@ module Make = (Reconciler: Types.Reconciler) => {
      * Setups the global context for hooks
      */
     module RenderContext = {
-      let hookFiber: ref(option(Fiber.t)) = ref(None);
-      let hookCursor: ref(int) = ref(0);
+      type context = {
+        mutable fiber: option(Fiber.t),
+        mutable cursor: int,
+      };
+
+      let context = {
+        fiber: None,
+        cursor: 0,
+      };
 
       let render = (current: option(Fiber.t), wip: Fiber.t) => {
         /**
          * Set rendering fiber
          */
-        hookFiber := Some(wip);
-        hookCursor := 0;
+        context.fiber = Some(wip);
+        context.cursor = 0;
 
         /**
          * Assign hooks to the adjacent fiber
@@ -829,13 +842,12 @@ module Make = (Reconciler: Types.Reconciler) => {
       };
 
       let finishRender = () => {
-        hookFiber := None;
-        hookCursor := 0;
+        context.fiber = None;
+        context.cursor = 0;
       };
 
       let getCurrentFiber = (): Fiber.t => {
-        let currentFiber = hookFiber^ ||> Exceptions.OutOfContextHookCall;
-        currentFiber;
+        context.fiber ||> Exceptions.OutOfContextHookCall;
       };
 
       let make = (tag: Types.Tags.Hook.t): Slot.t => {
@@ -846,9 +858,9 @@ module Make = (Reconciler: Types.Reconciler) => {
         /**
          * Allocate a hook slot
          */
-        let current = hookCursor^;
-        let slot: option(Slot.t) = Opaque.Array.get(currentFiber.hooks, current);
-        hookCursor := current + 1;
+        let index = context.cursor;
+        let slot: option(Slot.t) = Opaque.Array.get(currentFiber.hooks, index);
+        context.cursor = index + 1;
 
         switch (slot) {
           /**
@@ -859,7 +871,10 @@ module Make = (Reconciler: Types.Reconciler) => {
              * Slot may be incompatible than the requested.
              */
             if (actualSlot.tag != tag) {
-              raise(Exceptions.IncompatibleHook);
+              raise(Exceptions.IncompatibleHook(
+                Types.Tags.Hook.map(actualSlot.tag),
+                Types.Tags.Hook.map(tag),
+              ));
             }
             actualSlot;
           };
@@ -874,7 +889,7 @@ module Make = (Reconciler: Types.Reconciler) => {
             /**
              * Set the new slot on the allocated slot
              */
-            Opaque.Array.set(currentFiber.hooks, current, newSlot);
+            Opaque.Array.set(currentFiber.hooks, index, newSlot);
 
             newSlot;
           };
@@ -901,21 +916,26 @@ module Make = (Reconciler: Types.Reconciler) => {
           let state = RenderContext.make(Types.Tags.Hook.Callback);
           let dep = RenderContext.make(Types.Tags.Hook.Dependency);
 
+          let getFresh = () => {
+            state.value = Some(Opaque.transform(callback));
+            dep.value = Some(Opaque.transform(dependency));
+            callback;
+          };
+
           switch (state.value) {
             | Some(actualCallback) => {
-              if (dep.value != Some(Opaque.transform(dependency))) {
-                state.value = Some(Opaque.transform(callback));
-                dep.value = Some(Opaque.transform(dependency));
-                callback;
-              } else {
-                Opaque.transform(actualCallback);
+              switch (dep.value) {
+                | Some(actualDep) => {
+                  if (Opaque.transform(actualDep) == dependency) {
+                    Opaque.transform(actualCallback);
+                  } else {
+                    getFresh();
+                  }
+                }
+                | None => getFresh();
               }
             };
-            | None => {
-              state.value = Some(Opaque.transform(callback));
-              dep.value = Some(Opaque.transform(dependency));
-              callback;
-            }
+            | None => getFresh();
           }
         };
       };
@@ -960,11 +980,11 @@ module Make = (Reconciler: Types.Reconciler) => {
       module Effect = {
         type cleanup = unit => unit;
         type effect = unit => option(cleanup);
-        type slot = (
-          effect,
-          ref(option(cleanup)),
-          Types.Tags.Work.t,
-        );
+        type slot = {
+          mutable effect: effect,
+          mutable cleanup: option(cleanup),
+          mutable work: Types.Tags.Work.t,
+        };
 
         let use = (effect: effect, dependency: 'dependency): unit => {
           /**
@@ -973,39 +993,42 @@ module Make = (Reconciler: Types.Reconciler) => {
           let state = RenderContext.make(Types.Tags.Hook.Effect);
           let dep = RenderContext.make(Types.Tags.Hook.Dependency);
 
+          let getFresh = () => {
+            state.value = Some(Opaque.transform({
+              effect,
+              cleanup: None,
+              work: Types.Tags.Work.Placement,
+            }));
+            dep.value = Some(Opaque.transform(dependency));
+          };
+
           switch (dep.value) {
             | Some(actualDep) => {
-              /**
-               * Compare dependency
-               */
-              if (Opaque.transform(actualDep) != dependency) {
-                /**
-                 * Get previous slot value
-                 */
-                let%OptionUnit opaquePrev = state.value;
-                let (effect, cleanup, _) = Opaque.transform(opaquePrev);
-                /**
-                 * Update slot value
-                 */
-                state.value = Some(Opaque.transform((
-                  effect,
-                  cleanup,
-                  Types.Tags.Work.Update,
-                )));
-                /**
-                 * Update dependency value
-                 */
-                dep.value = Some(Opaque.transform(dependency));
+              switch (state.value) {
+                | Some(actualValue) => {
+                  /**
+                   * Compare dependency
+                   */
+                  if (Opaque.transform(actualDep) != dependency) {
+                    /**
+                     * Get previous slot value
+                     */
+                    let current = Opaque.transform(actualValue);
+                    /**
+                     * Update slot value
+                     */
+                    current.effect = effect;
+                    current.work = Types.Tags.Work.Update;
+                    /**
+                     * Update dependency value
+                     */
+                    dep.value = Some(Opaque.transform(dependency));
+                  }
+                }
+                | None => getFresh();
               }
             };
-            | None => {
-              state.value = Some(Opaque.transform((
-                effect,
-                ref(None),
-                Types.Tags.Work.Placement,
-              )));
-              dep.value = Some(Opaque.transform(dependency));
-            };
+            | None => getFresh();
           }
         };
       };
@@ -1015,12 +1038,15 @@ module Make = (Reconciler: Types.Reconciler) => {
        */
       module ForceUpdate = {
         let use = () => {
+          let wip = RenderContext.getCurrentFiber();
+
           let dispatch = RenderContext.make(Types.Tags.Hook.ForceUpdate);
 
           switch (dispatch.value) {
             | Some(actualValue) => Opaque.transform(actualValue);
             | None => {
               let callback = () => {
+                Fiber.shouldUpdate(wip, true);
                 Core.updateScheduled := true;
               };
 
@@ -1039,13 +1065,11 @@ module Make = (Reconciler: Types.Reconciler) => {
       module LayoutEffect = {
         type cleanup = unit => unit;
         type effect = unit => option(cleanup);
-
-
-        type slot = (
-          effect,
-          ref(option(cleanup)),
-          Types.Tags.Work.t,
-        );
+        type slot = {
+          mutable effect: effect,
+          mutable cleanup: option(cleanup),
+          mutable work: Types.Tags.Work.t,
+        };
 
         let use = (effect: effect, dependency: 'dependency): unit => {
           /**
@@ -1054,39 +1078,42 @@ module Make = (Reconciler: Types.Reconciler) => {
           let state = RenderContext.make(Types.Tags.Hook.LayoutEffect);
           let dep = RenderContext.make(Types.Tags.Hook.Dependency);
 
+          let getFresh = () => {
+            state.value = Some(Opaque.transform({
+              effect,
+              cleanup: None,
+              work: Types.Tags.Work.Placement,
+            }));
+            dep.value = Some(Opaque.transform(dependency));
+          };
+
           switch (dep.value) {
             | Some(actualDep) => {
-              /**
-               * Compare dependency
-               */
-              if (Opaque.transform(actualDep) != dependency) {
-                /**
-                 * Get previous slot value
-                 */
-                let%OptionUnit opaquePrev = state.value;
-                let (effect, cleanup, _) = Opaque.transform(opaquePrev);
-                /**
-                 * Update slot value
-                 */
-                state.value = Some(Opaque.transform((
-                  effect,
-                  cleanup,
-                  Types.Tags.Work.Update,
-                )));
-                /**
-                 * Update dependency value
-                 */
-                dep.value = Some(Opaque.transform(dependency));
+              switch (state.value) {
+                | Some(actualValue) => {
+                  /**
+                   * Compare dependency
+                   */
+                  if (Opaque.transform(actualDep) != dependency) {
+                    /**
+                     * Get previous slot value
+                     */
+                    let current = Opaque.transform(actualValue);
+                    /**
+                     * Update slot value
+                     */
+                    current.effect = effect;
+                    current.work = Types.Tags.Work.Update;
+                    /**
+                     * Update dependency value
+                     */
+                    dep.value = Some(Opaque.transform(dependency));
+                  }
+                }
+                | None => getFresh();
               }
             };
-            | None => {
-              state.value = Some(Opaque.transform((
-                effect,
-                ref(None),
-                Types.Tags.Work.Placement,
-              )));
-              dep.value = Some(Opaque.transform(dependency));
-            };
+            | None => getFresh();
           }
         };
       };
@@ -1143,7 +1170,7 @@ module Make = (Reconciler: Types.Reconciler) => {
 
                 if (newState != actualValue) {
                   state.value = Some(Opaque.transform(newState));
-                  wip.shouldUpdate = true;
+                  Fiber.shouldUpdate(wip, true);
                   Core.updateScheduled := true;
                 }
               };
@@ -1182,7 +1209,7 @@ module Make = (Reconciler: Types.Reconciler) => {
 
                 if (newState != actualValue) {
                   state.value = Some(Opaque.transform(newState));
-                  wip.shouldUpdate = true;
+                  Fiber.shouldUpdate(wip, true);
                   Core.updateScheduled := true;
                 }
               };
@@ -1235,7 +1262,7 @@ module Make = (Reconciler: Types.Reconciler) => {
 
     let updateBasic = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let constructor = wip.constructor ||> Exceptions.MissingBasicComponentConstructor;
+        let constructor = wip.constructor ||> Exceptions.MissingBasicComponentConstructor(wip.name);
 
         let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1255,7 +1282,7 @@ module Make = (Reconciler: Types.Reconciler) => {
     let updateComponent = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       Hooks.RenderContext.render(current, wip);
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let constructor = wip.constructor ||> Exceptions.MissingComponentConstructor;
+        let constructor = wip.constructor ||> Exceptions.MissingComponentConstructor(wip.name);
 
         let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1279,13 +1306,15 @@ module Make = (Reconciler: Types.Reconciler) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
         let instance = Context.read(wip, props.context);
 
-        let children: option(Types.Element.t) = if (instance.shouldUpdate) {
-          props.build(instance.value);
-        } else {
-          let%Option actualCurrent = current;
-          let result = actualCurrent.children;
-          actualCurrent.children = None;
-          result;
+        let children: option(Types.Element.t) = {
+          if (instance.shouldUpdate) {
+            props.build(instance.value);
+          } else {
+            let%Option actualCurrent = current;
+            let result = actualCurrent.children;
+            actualCurrent.children = None;
+            result;
+          }
         };
 
         wip.children = children;
@@ -1302,7 +1331,7 @@ module Make = (Reconciler: Types.Reconciler) => {
 
     let updateContextProvider = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let props: Context.Provider.props('a) = Opaque.transform(wip.props);
-      let value = props.value ||> Exceptions.DesyncContextValue;
+      let value = props.value ||> Exceptions.DesyncContextValue(props.context.name);
 
       switch (wip.instance) {
         | None => {
@@ -1314,9 +1343,9 @@ module Make = (Reconciler: Types.Reconciler) => {
         };
         | Some(actualInstance) => {
           let instance: Context.Instance.t('a) = Opaque.transform(actualInstance);
-          let actualCurrent = current ||> Exceptions.UnboundContextInstance;
+          let actualCurrent = current ||> Exceptions.UnboundContextInstance(props.context.name);
           let prevInstance: Context.Instance.t('a) = Opaque.transform(
-            actualCurrent.instance ||> Exceptions.UnboundContextInstance
+            actualCurrent.instance ||> Exceptions.UnboundContextInstance(props.context.name)
           );
           instance.shouldUpdate = value != prevInstance.value;
           instance.value = value;
@@ -1357,7 +1386,7 @@ module Make = (Reconciler: Types.Reconciler) => {
     let updateMemoInitial = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       Hooks.RenderContext.render(current, wip);
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let constructor = wip.constructor ||> Exceptions.MissingMemoComponentConstructor;
+        let constructor = wip.constructor ||> Exceptions.MissingMemoComponentConstructor(wip.name);
 
         let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1379,7 +1408,7 @@ module Make = (Reconciler: Types.Reconciler) => {
     let updateMemo = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       switch (current) {
         | Some(actualCurrent) => {
-          let shouldUpdate = ref(actualCurrent.shouldUpdate);
+          let shouldUpdate = ref(Fiber.willUpdate(actualCurrent));
 
           if (!shouldUpdate^) {
             let deps = actualCurrent.dependencies;
@@ -1411,7 +1440,7 @@ module Make = (Reconciler: Types.Reconciler) => {
 
     let updateMemoBasicInitial = (current: option(Fiber.t), wip: Fiber.t): option(Fiber.t) => {
       let result: option(Types.Element.t) = safelyRender(wip, () => {
-        let constructor = wip.constructor ||> Exceptions.MissingMemoBasicComponentConstructor;
+        let constructor = wip.constructor ||> Exceptions.MissingMemoBasicComponentConstructor(wip.name);
 
         let render: Types.Component.render('props) = Opaque.transform(constructor);
         let props: 'props = Opaque.transform(wip.props);
@@ -1537,10 +1566,10 @@ module Make = (Reconciler: Types.Reconciler) => {
 
           if (tag == Types.Tags.Hook.LayoutEffect) {
             let%OptionUnit actualValue = value;
-            let (effect, cleanup, workTag): tuple = Opaque.transform(actualValue);
+            let current: tuple = Opaque.transform(actualValue);
 
-            if (workTag == Types.Tags.Work.Placement) {
-              cleanup := effect();
+            if (current.work == Types.Tags.Work.Placement) {
+              current.cleanup = current.effect();
             }
           }
         });
@@ -1582,14 +1611,14 @@ module Make = (Reconciler: Types.Reconciler) => {
 
           if (tag == Types.Tags.Hook.LayoutEffect) {
             let%OptionUnit actualValue = value;
-            let (effect, cleanup, workTag): tuple = Opaque.transform(actualValue);
+            let current: tuple = Opaque.transform(actualValue);
 
-            if (workTag == Types.Tags.Work.Update) {
+            if (current.work == Types.Tags.Work.Update) {
               ignore({
-                let%OptionUnit actualCleanup = cleanup^;
-                actualCleanup();
+                let%OptionUnit cleanup = current.cleanup;
+                cleanup();
               });
-              cleanup := effect();
+              current.cleanup = current.effect();
             }
           }
         });
@@ -1610,7 +1639,6 @@ module Make = (Reconciler: Types.Reconciler) => {
         let%OptionUnit parent = Utils.getHostParent(wip);
         let%OptionUnit parentInstance = parent.instance;
         let%OptionUnit childInstance = wip.instance;
-        Js.log(wip);
 
         Reconciler.removeChild(
           Opaque.transform(parentInstance),
@@ -1628,9 +1656,11 @@ module Make = (Reconciler: Types.Reconciler) => {
 
           if (tag == Types.Tags.Hook.LayoutEffect) {
             let%OptionUnit actualValue = value;
-            let (_, cleanup, _): tuple = Opaque.transform(actualValue);
-            let%OptionUnit actualCleanup = cleanup^;
-            actualCleanup();
+            let current: tuple = Opaque.transform(actualValue);
+            ignore({
+              let%OptionUnit cleanup = current.cleanup;
+              cleanup();
+            });
           }
         });
       };
@@ -1666,11 +1696,10 @@ module Make = (Reconciler: Types.Reconciler) => {
 
             if (tag == Types.Tags.Hook.Effect) {
               let%OptionUnit actualValue = value;
-              let (effect, cleanup, workTag): tuple = Opaque.transform(actualValue);
+              let current: tuple = Opaque.transform(actualValue);
 
-
-              if (workTag == Types.Tags.Work.Placement) {
-                cleanup := effect();
+              if (current.work == Types.Tags.Work.Placement) {
+                current.cleanup = current.effect();
               }
             }
           });
@@ -1694,14 +1723,14 @@ module Make = (Reconciler: Types.Reconciler) => {
 
             if (tag == Types.Tags.Hook.Effect) {
               let%OptionUnit actualValue = value;
-              let (effect, cleanup, workTag): tuple = Opaque.transform(actualValue);
+              let current: tuple = Opaque.transform(actualValue);
 
-              if (workTag == Types.Tags.Work.Update) {
+              if (current.work == Types.Tags.Work.Update) {
                 ignore({
-                  let%OptionUnit actualCleanup = cleanup^;
-                  actualCleanup();
+                  let%OptionUnit cleanup = current.cleanup;
+                  cleanup();
                 });
-                cleanup := effect();
+                current.cleanup = current.effect();
               }
             }
           });
@@ -1725,9 +1754,11 @@ module Make = (Reconciler: Types.Reconciler) => {
 
             if (tag == Types.Tags.Hook.Effect) {
               let%OptionUnit actualValue = value;
-              let (_, cleanup, _): tuple = Opaque.transform(actualValue);
-              let%OptionUnit actualCleanup = cleanup^;
-              actualCleanup();
+              let current: tuple = Opaque.transform(actualValue);
+              ignore({
+                let%OptionUnit cleanup = current.cleanup;
+                cleanup();
+              });
             }
           });
         };
