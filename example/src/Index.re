@@ -90,7 +90,7 @@ module Content = DOM.Memo({
   };
 });
 
-module App = DOM.Component({
+module App = DOM.Memo({
   type props = unit;
 
   let name = "App";

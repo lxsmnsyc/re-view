@@ -159,7 +159,7 @@ function make$4(param, param$1) {
             });
 }
 
-var App = Curry._1(DOM$ReView.DomCore.Component, {
+var App = Curry._1(DOM$ReView.DomCore.Memo, {
       make: make$4,
       name: "App"
     });
