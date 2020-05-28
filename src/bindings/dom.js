@@ -60,16 +60,17 @@ function createInstance(constructor, props, id, fiber) {
 }
 
 function appendChild(parentInstance, childInstance, index, fiber) {
-  let nodes = parentInstance.children;
   childInstance[FIBER] = fiber;
+
   childInstance[CUSTOM_PROP] = index.toString();
   if (childInstance instanceof Element) {
     childInstance.setAttribute(CUSTOM_ATTR, index.toString());
   }
 
-  for (let i = 0; i < nodes.length; i += 1) {
-    let currentChild = nodes[i];
-    let actualIndex = Number.parseInt(nodes[i][CUSTOM_PROP], 10);
+  let currentChild = parentInstance.firstChild;
+
+  while (currentChild) {
+    let actualIndex = Number.parseInt(currentChild[CUSTOM_PROP], 10);
 
     /**
      * Replace instance if it is of the same value
@@ -85,6 +86,7 @@ function appendChild(parentInstance, childInstance, index, fiber) {
       parentInstance.insertBefore(childInstance, currentChild);
       return;
     }
+    currentChild = currentChild.nextSibling;
   }
 
   parentInstance.appendChild(childInstance);
@@ -92,14 +94,16 @@ function appendChild(parentInstance, childInstance, index, fiber) {
 
 function removeChild(parentInstance, childInstance, index, fiber) {
   childInstance[FIBER] = fiber;
-  let nodes = parentInstance.children;
 
-  for (let i = 0; i < nodes.length; i += 1) {
-    let actualIndex = Number.parseInt(nodes[i][CUSTOM_PROP], 10);
+  let currentChild = parentInstance.firstChild;
+
+  while (currentChild) {
+    let actualIndex = Number.parseInt(currentChild[CUSTOM_PROP], 10);
 
     if (actualIndex === index) {
-      parentInstance.removeChild(childInstance);
+      parentInstance.removeChild(currentChild);
     }
+    currentChild = currentChild.nextSibling;
   }
 }
 
