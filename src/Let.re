@@ -50,3 +50,12 @@ let (||>) = (value: option('a), error: exn): 'a => {
     | None => raise(error);
   }
 };
+
+let (||<) = (value: option('a), fallback: 'b): 'c => {
+  Opaque.transform(
+    switch (value) {
+      | Some(actualValue) => Opaque.transform(actualValue);
+      | None => Opaque.transform(fallback);
+    }
+  );
+};

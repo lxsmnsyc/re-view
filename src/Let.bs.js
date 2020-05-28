@@ -34,7 +34,16 @@ function $pipe$pipe$great(value, error) {
   throw error;
 }
 
+function $pipe$pipe$less(value, fallback) {
+  if (value !== undefined) {
+    return Caml_option.valFromOption(value);
+  } else {
+    return fallback;
+  }
+}
+
 exports.$$Option = $$Option;
 exports.OptionUnit = OptionUnit;
 exports.$pipe$pipe$great = $pipe$pipe$great;
+exports.$pipe$pipe$less = $pipe$pipe$less;
 /* No side effect */
