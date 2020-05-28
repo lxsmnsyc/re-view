@@ -894,7 +894,7 @@ module Element = {
   let make: Types.Component.t(props) = ({ ref }, props): option(Types.Element.t) => {
     DomCore.Host.make({ ref, key: None }, {
       constructor: props.tag,
-      attributes: Opaque.convert(props.attributes),
+      attributes: Opaque.transform(props.attributes),
       children: props.children,
     });
   };
@@ -904,7 +904,7 @@ module Text = {
   let make = (value: string) => {
     DomCore.Host.make({ key: None, ref: None }, {
       constructor: "text",
-      attributes: Opaque.convert(
+      attributes: Opaque.transform(
         Element.attributes(~value=value, ()),
       ),
       children: [||],
