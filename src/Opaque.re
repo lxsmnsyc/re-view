@@ -27,8 +27,6 @@
  */
 type t;
 
-external return: t => 'a = "%identity";
-external convert: 'a => t = "%identity";
 external transform: 'a => 'b = "%identity";
 
 module Array = {
