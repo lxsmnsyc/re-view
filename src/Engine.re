@@ -1870,7 +1870,6 @@ module Make = (Reconciler: Types.Reconciler) => {
           Error.call(commitingFiber);
         } else if (commitOnChild^) {
           call(commitingFiber.child);
-
           if (commitingFiber.error != None) {
             Error.call(commitingFiber);
           }
