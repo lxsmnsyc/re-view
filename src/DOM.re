@@ -883,7 +883,98 @@ module Element = {
     [@bs.as "nomodule"]
     [@bs.optional]
     noModule: bool,
-  };
+
+    [@bs.as "open"]
+    [@bs.optional]
+    open_: bool,
+
+    [@bs.as "autocomplete"]
+    [@bs.optional]
+    autoComplete: string,
+
+    [@bs.as "autofocus"]
+    [@bs.optional]
+    autoFocus: bool,
+
+    [@bs.optional]
+    cols: int,
+
+    [@bs.as "maxlength"]
+    [@bs.optional]
+    maxLength: int,
+
+    [@bs.as "minlength"]
+    [@bs.optional]
+    minLength: int,
+    
+    [@bs.optional]
+    placeholder: string,
+
+    [@bs.as "readonly"]
+    [@bs.optional]
+    readOnly: bool,
+
+    [@bs.optional]
+    required: bool,
+
+    [@bs.optional]
+    rows: int,
+
+    [@bs.optional]
+    wrap: string,
+
+    [@bs.optional]
+    multiple: bool,
+
+    [@bs.optional]
+    size: int,
+
+    [@bs.optional]
+    max: int,
+
+    [@bs.as "for"]
+    [@bs.optional]
+    for_: string,
+
+    [@bs.optional]
+    selected: bool,
+
+    [@bs.optional]
+    low: int,
+
+    [@bs.optional]
+    high: int,
+
+    [@bs.optional]
+    optimum: int,
+
+    [@bs.optional]
+    accept: string,
+
+    [@bs.optional]
+    capture: string,
+
+    [@bs.optional]
+    checked: bool,
+
+    [@bs.as "dirname"]
+    [@bs.optional]
+    dirName: string,
+
+    [@bs.as "formaction"]
+    [@bs.optional]
+    formAction: string,
+
+    [@bs.as "formenctype"]
+    [@bs.optional]
+    formEncType: string,
+
+    [@bs.as "formmethod"]
+    [@bs.optional]
+    formMethod: string,
+
+    
+  };  
 
   type props = {
     tag: string,

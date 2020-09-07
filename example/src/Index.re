@@ -39,21 +39,7 @@ module ImageSrc = DOM.Memo({
   let make = (_, _) => {
     let state = DOM.useContext(imageContext);
 
-    if (state == initialImage) {
-      DOM.Fragment.make({ key: None, ref: None}, {
-        children: [|
-          DOM.Text.make("Current source: " ++ state),
-          DOM.Text.make("Current source: " ++ state),
-        |],
-      });
-    } else {
-      DOM.Fragment.make({ key: None, ref: None}, {
-        children: [|
-          None,
-          DOM.Text.make("Current source: " ++ state),
-        |],
-      });
-    }
+    DOM.Text.make("Current source: " ++ state);
   };
 });
 

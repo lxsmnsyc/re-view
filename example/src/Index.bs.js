@@ -35,27 +35,7 @@ var $$Image = Curry._1(DOM$ReView.DomCore.Memo, {
 
 function make$1(param, param$1) {
   var state = Curry._1(DOM$ReView.useContext, imageContext);
-  if (state === initialImage) {
-    return Curry._2(DOM$ReView.DomCore.Fragment.make, {
-                key: undefined,
-                ref: undefined
-              }, {
-                children: [
-                  DOM$ReView.$$Text.make("Current source: " + state),
-                  DOM$ReView.$$Text.make("Current source: " + state)
-                ]
-              });
-  } else {
-    return Curry._2(DOM$ReView.DomCore.Fragment.make, {
-                key: undefined,
-                ref: undefined
-              }, {
-                children: [
-                  undefined,
-                  DOM$ReView.$$Text.make("Current source: " + state)
-                ]
-              });
-  }
+  return DOM$ReView.$$Text.make("Current source: " + state);
 }
 
 var ImageSrc = Curry._1(DOM$ReView.DomCore.Memo, {

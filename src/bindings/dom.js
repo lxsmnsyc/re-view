@@ -27,7 +27,7 @@
  */
 'use strict';
 
-const FIBER = 'fiberInstance';
+const FIBER = 'reviewFiber';
 
 const CUSTOM_ATTR = 're-view-index';
 const CUSTOM_PROP = 'reviewIndex';
